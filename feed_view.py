@@ -268,8 +268,11 @@ def checklist(cards: list[dict], now: datetime, results: dict[str, str]) -> str:
             lines.append(f"⬜ {title}")
     if len(cards) > MAX_CARDS:
         lines.append(f"…and {len(cards) - MAX_CARDS} more in Cardlake.")
-    open_count = sum(1 for card in cards if not results.get(str(card.get("id"))))
-    summary = _today_summary(cards, now) if open_count else "all clear ✓"
+    still_open = [card for card in cards if not results.get(str(card.get("id")))]
+    open_count = len(still_open)
+    # Counts what's left, so the pinned line shrinks as you go.
+    summary = (_today_summary(still_open, now) + (" left" if len(still_open) < len(cards) else "")
+               if open_count else "all clear ✓")
     body = "\n".join(lines)
     if not open_count:
         body += "\n\n**Nothing left for today.** 🎉"

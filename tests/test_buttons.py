@@ -164,6 +164,11 @@ class ChecklistTest(unittest.TestCase):
         self.assertIn("✅ Call mum · done", text)
         self.assertNotIn("Nothing left", text)
 
+    def test_the_heading_counts_only_whats_left(self):
+        due_today = dict(REMINDER, id="r2", title="Due today", metadata={"due_date": "2026-11-07"})
+        self.assertIn("2 overdue, 1 due today", feed_view.checklist([PINNED, REMINDER, due_today], NOW, {}))
+        self.assertIn("1 overdue, 1 due today left", feed_view.checklist([PINNED, REMINDER, due_today], NOW, {"r1": "Done"}))
+
     def test_says_all_clear_when_every_card_is_handled(self):
         text = feed_view.checklist([PINNED, REMINDER], NOW, {"r1": "Done", "p1": "Snoozed for a week"})
         self.assertIn("all clear ✓", text)
