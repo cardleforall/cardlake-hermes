@@ -70,6 +70,9 @@ def call_cardlake(ctx, tool: str, args: dict) -> Any:
 
 
 _MAX_REPLY_TOKENS = 4000  # room for models that think before answering
+# Hermes gives side requests 30 seconds unless told otherwise. Reading a day of conversations
+# takes longer than that on slower providers, such as ones that run a separate program.
+_MODEL_TIMEOUT_SECONDS = 180.0
 
 
 def _json_from_text(text: Any) -> Any:
@@ -85,6 +88,11 @@ def _json_from_text(text: Any) -> Any:
         return None
 
 
+def _refused_json_mode(error: Exception) -> bool:
+    message = str(error).lower()
+    return "response_format" in message or "json" in message
+
+
 def _ask_model(ctx, instructions: str, prompt: str, schema: dict, purpose: str) -> Any:
     """Ask the user's model for JSON. The schema goes in the prompt rather than to the host:
     the host rejects a whole reply over one stray field (a null date, a fourth card), and
@@ -92,17 +100,21 @@ def _ask_model(ctx, instructions: str, prompt: str, schema: dict, purpose: str) 
     get a plain request instead."""
     instructions = f"{instructions}\n\nReply with JSON only, in this shape:\n{json.dumps(schema)}"
     blocks = [{"type": "text", "text": prompt}]
+    limits = dict(temperature=0.0, max_tokens=_MAX_REPLY_TOKENS, timeout=_MODEL_TIMEOUT_SECONDS)
     try:
         result = ctx.llm.complete_structured(
-            instructions=instructions, input=blocks, json_mode=True,
-            temperature=0.0, max_tokens=_MAX_REPLY_TOKENS, purpose=f"cardlake.{purpose}",
+            instructions=instructions, input=blocks, json_mode=True, purpose=f"cardlake.{purpose}", **limits,
         )
         return result.parsed if result.parsed is not None else _json_from_text(result.text)
-    except Exception:
-        logger.warning("Cardlake: JSON-mode model call failed, retrying as plain text", exc_info=True)
+    except Exception as error:
+        # Only a refused JSON mode is worth a second try; a slow or broken provider would
+        # just make the user wait twice as long for the same failure.
+        if not _refused_json_mode(error):
+            raise
+        logger.warning("Cardlake: provider refused JSON mode, retrying as plain text", exc_info=True)
     result = ctx.llm.complete(
         [{"role": "system", "content": instructions}, {"role": "user", "content": prompt}],
-        temperature=0.0, max_tokens=_MAX_REPLY_TOKENS, purpose=f"cardlake.{purpose}.plain",
+        purpose=f"cardlake.{purpose}.plain", **limits,
     )
     return _json_from_text(result.text)
 

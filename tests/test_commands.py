@@ -102,6 +102,17 @@ class PeriodCommandTest(unittest.TestCase):
         self.assertEqual(len(ctx.plain_prompts), 1)
         self.assertEqual([tool for tool, _ in ctx.written()], ["create_work_item"])
 
+    def test_slow_providers_get_more_than_hermes_default_30_seconds(self):
+        ctx = FakeCtx(llm_answer=picked())
+        run(ctx, "today", [CHAT])
+        self.assertGreaterEqual(ctx.prompts[0]["timeout"], 120)
+
+    def test_a_failing_provider_is_not_asked_twice(self):
+        ctx = FakeCtx(llm_answer=picked(),
+                      json_mode_error=RuntimeError("Antigravity execution failed: no result event, process still alive"))
+        self.assertIn("nothing was added", run(ctx, "today", [CHAT]))
+        self.assertEqual(ctx.plain_prompts, [])
+
     def test_not_connected_gives_the_connect_command_before_spending_on_the_model(self):
         ctx = FakeCtx(llm_answer=picked(), connected=False)
         self.assertIn(commands.CONNECT_COMMAND, run(ctx, "today", [CHAT]))
