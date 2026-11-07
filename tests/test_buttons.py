@@ -387,7 +387,7 @@ class MorningWithoutButtonsTest(unittest.TestCase):
         self.assertEqual(h.bot.sent, {})
 
 
-SNOOZED = dict(PINNED, pinned_at=None, snoozed_until="2026-11-14T04:30:00.000Z")
+SNOOZED = dict(PINNED, pinned_at=None, remind_later_until="2026-11-14T04:30:00.000Z")  # as list_feed names it
 
 
 class FilterTest(unittest.TestCase):
@@ -429,7 +429,8 @@ class FilterTest(unittest.TestCase):
 
     def test_snoozed_cards_say_when_they_come_back(self):
         self.assertIn("⏰ back 14 Nov", feed_view.panel(SNOOZED, NOW))
-        self.assertIn("⏰ back tomorrow", feed_view.panel(dict(SNOOZED, snoozed_until="2026-11-08T03:00:00Z"), NOW))
+        self.assertIn("⏰ back tomorrow", feed_view.panel(dict(SNOOZED, remind_later_until="2026-11-08T03:00:00Z"), NOW))
+        self.assertIn("⏰ back 9 Nov", feed_view.panel(dict(WORK, snoozed_until="2026-11-09T03:00:00Z"), NOW))
 
 
 class SnoozedWithButtonsTest(HarnessTest):

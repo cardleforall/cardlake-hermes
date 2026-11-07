@@ -52,7 +52,8 @@ def _due_value(card: dict) -> Optional[str]:
 def _days_left(card: dict) -> int:
     """Whole days until a snoozed card was due back (at least 1), to snooze it again on Undo."""
     try:
-        until = datetime.fromisoformat(str(card.get("snoozed_until") or "").replace("Z", "+00:00"))
+        raw = card.get("remind_later_until") or card.get("snoozed_until") or ""
+        until = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
     except ValueError:
         return 1
     if until.tzinfo is None:

@@ -115,7 +115,8 @@ def _link(card: dict) -> str:
 
 def back(card: dict, now: datetime) -> str:
     """When a snoozed card comes back: 'back tomorrow', 'back 14 Nov', or ''."""
-    raw = str(card.get("snoozed_until") or "")
+    # list_feed calls it remind_later_until; a snooze's own result calls it snoozed_until.
+    raw = str(card.get("remind_later_until") or card.get("snoozed_until") or "")
     try:
         until = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     except ValueError:
