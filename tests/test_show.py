@@ -145,22 +145,5 @@ class ShowToolElsewhereTest(unittest.TestCase):
         self.assertIn("one short line", show.SHOW_SCHEMA["description"])
 
 
-class OpenInTelegramTest(unittest.TestCase):
-    def test_sends_a_button_that_opens_cardlake_inside_telegram(self):
-        h = Harness()
-        try:
-            self.assertEqual(h.run("app"), "")
-        finally:
-            h.close()
-        self.assertEqual(h.bot.sent[1]["rows"], [[{"text": "📱 Open Cardlake here", "web_app": "https://cardlake.app/vault/"}]])
-
-    def test_elsewhere_it_says_why_not(self):
-        h = Harness(env={"HERMES_SESSION_PLATFORM": "cli"})
-        try:
-            self.assertIn("only works in your private Telegram chat", h.run("app"))
-        finally:
-            h.close()
-
-
 if __name__ == "__main__":
     unittest.main()

@@ -255,11 +255,6 @@ def handle(ctx, raw_args: str, buttons=None) -> str:
         if verb == "today" and not rest:
             reply = today_reply(ctx)
             return _reply(buttons, reply) if reply else with_open_link("Nothing is overdue or due today.")
-        if verb == "app" and not rest:
-            # Trying out: Cardlake opened inside Telegram. Not in the usage text until sign-in is known to work there.
-            if buttons is not None and buttons.send_app():
-                return ""
-            return with_open_link("Opening Cardlake inside Telegram only works in your private Telegram chat with Hermes.")
         if verb == "deal" and not rest:
             return _reply(buttons, deal_reply(ctx))
         if verb == "save":

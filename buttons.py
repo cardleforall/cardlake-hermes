@@ -195,14 +195,9 @@ class TelegramCards:
 
     def attach(self, native, adapter=None) -> None:
         """Hermes calls this when Telegram connects, with python-telegram-bot's Application."""
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, WebAppInfo
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
         from telegram.ext import CallbackQueryHandler
-        def button(spec: dict):
-            spec = dict(spec)
-            if "web_app" in spec:  # opens the page inside Telegram
-                spec["web_app"] = WebAppInfo(url=spec["web_app"])
-            return InlineKeyboardButton(**spec)
-        self.markup = lambda rows: InlineKeyboardMarkup([[button(b) for b in row] for row in rows])
+        self.markup = lambda rows: InlineKeyboardMarkup([[InlineKeyboardButton(**b) for b in row] for row in rows])
         self.preview = lambda url: (LinkPreviewOptions(url=url, prefer_large_media=True) if url
                                     else LinkPreviewOptions(is_disabled=True))
         self.format = getattr(adapter, "format_message", None)
@@ -245,20 +240,6 @@ class TelegramCards:
             return future.result(_SEND_TIMEOUT_SECONDS)
         except Exception:
             logger.warning("Cardlake: sending cards to Telegram failed", exc_info=True)
-            return False
-
-    def send_app(self) -> bool:
-        """A button that opens Cardlake inside Telegram, instead of in the browser."""
-        chat = self.chat()
-        if chat is None:
-            return False
-        text = "**Your Cardlake feed, inside Telegram**\nOpens Cardlake here, without leaving the chat."
-        rows = [[{"text": "📱 Open Cardlake here", "web_app": OPEN_LINK}]]
-        try:
-            asyncio.run_coroutine_threadsafe(self._post(chat, text, rows), self.loop).result(_SEND_TIMEOUT_SECONDS)
-            return True
-        except Exception:
-            logger.warning("Cardlake: couldn't send the open-in-Telegram button", exc_info=True)
             return False
 
     async def _send(self, chat: str, parts, today) -> bool:
