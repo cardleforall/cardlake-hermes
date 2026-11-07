@@ -95,8 +95,21 @@ class FeedLayoutTest(unittest.TestCase):
         odd = dict(LEARNING, metadata={"url": "javascript:alert(1)"})
         self.assertNotIn("javascript", run(FakeCtx(feed=[odd]), "feed"))
 
-    def test_pinned_cards_say_so(self):
-        self.assertIn("📌 pinned", run(FakeCtx(feed=[dict(MISC, pinned_at="2026-11-01")]), "feed"))
+    def test_pinned_cards_get_a_short_pin_that_keeps_the_line_from_wrapping(self):
+        reply = run(FakeCtx(feed=[dict(MISC, pinned_at="2026-11-01")]), "feed")
+        self.assertIn("> 💬 **Misc** · 📌\n", reply)
+        self.assertNotIn("pinned", reply)
+
+    def test_overdue_and_due_today_get_the_full_panels_before_pinned_cards(self):
+        # As in a real feed: Cardlake lists pinned cards first.
+        pinned = [dict(MISC, id=f"p{i}", title=f"Pinned {i}", pinned_at="2026-11-01") for i in range(3)]
+        reply = run(FakeCtx(feed=pinned + [MISC, TODAY, OVERDUE]), "feed")
+        panels = [part for part in reply.split("\n\n") if part.startswith("> ")]
+        self.assertIn("Watch Karpathy talk", panels[0])
+        self.assertIn("Call mum", panels[1])
+        self.assertIn("Pinned 0", panels[2])
+        self.assertIn("- 💬 Pinned 1", reply)
+        self.assertLess(reply.index("Pinned 2"), reply.index("- 💬 An idea"))
 
     def test_empty_feed(self):
         reply = run(FakeCtx(feed=[]), "feed")

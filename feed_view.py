@@ -116,7 +116,8 @@ def _link(card: dict) -> str:
 def panel(card: dict, now: datetime) -> str:
     emoji, label = kind(card)
     top = f"{emoji} **{label}**"
-    extras = [x for x in (status(card, now), "📌 pinned" if card.get("pinned_at") else "") if x]
+    # A bare pin, not "📌 pinned": on a phone the longer status line wraps.
+    extras = [x for x in (status(card, now), "📌" if card.get("pinned_at") else "") if x]
     if extras:
         top += " · " + " · ".join(extras)
     lines = [f"> {top}", f"> **{plain(card.get('title')) or 'Untitled'}**"]
@@ -155,12 +156,25 @@ def render(cards: list[dict], now: datetime, heading: str, summary: str = "") ->
     return with_open_link("\n\n".join(parts))
 
 
+def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
+    """Overdue, then due today, then pinned, then the rest, each in the feed's own order, so the
+    cards shown in full are the ones that need you. Cardlake puts pinned cards first, which left an
+    overdue reminder as a one-line entry under three pinned panels."""
+    def rank(card: dict) -> int:
+        if is_overdue(card, now):
+            return 0
+        if is_due_today(card, now):
+            return 1
+        return 2 if card.get("pinned_at") else 3
+    return sorted(cards, key=rank)
+
+
 def render_feed(cards: list[dict], now: datetime) -> str:
     if not cards:
         return with_open_link("Your Cardlake feed is empty.")
     overdue = sum(is_overdue(c, now) for c in cards)
     summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue else "")
-    return render(cards, now, "🗂 Your Cardlake feed", summary)
+    return render(by_urgency(cards, now), now, "🗂 Your Cardlake feed", summary)
 
 
 def today_cards(cards: list[dict], now: datetime) -> list[dict]:
