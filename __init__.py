@@ -100,21 +100,44 @@ def add_open_link(response_text: str = "", **kwargs):
     return with_open_link(response_text)
 
 
+def _optional(what: str, register_fn) -> None:
+    """Hermes turns off the whole plugin if register() raises, and older Hermes versions lack some
+    of these features. So each extra is skipped on its own and the commands still load."""
+    try:
+        register_fn()
+    except Exception:
+        logger.warning("Cardlake: skipped %s; this Hermes version may not support it", what, exc_info=True)
+
+
 def register(ctx) -> None:
     ctx.register_command(
         "cardlake", lambda raw_args: handle(ctx, raw_args),
         description="See your Cardlake feed and what's due, save a card, or snooze one",
         args_hint="feed|today|save <text>|snooze <text>",
     )
+    # The guard comes before the morning job that it protects, and the job is skipped if the guard is.
+    try:
+        ctx.register_hook("pre_tool_call", lambda **kwargs: block_morning_changes(ctx, **kwargs))
+    except Exception:
+        logger.warning("Cardlake: skipped the morning message, its guard couldn't be added", exc_info=True)
+        guarded = False
+    else:
+        guarded = True
+    _optional("the open-Cardlake link", lambda: (
+        ctx.register_hook("post_tool_call", note_cardlake_use),
+        ctx.register_hook("transform_llm_output", add_open_link),
+    ))
+    _optional("the chat guide", lambda: ctx.register_system_prompt_section("cardlake", CHAT_GUIDE))
+    if guarded:
+        _optional("the morning message", lambda: _register_morning(ctx))
+
+
+def _register_morning(ctx) -> None:
     ctx.register_tool(
         name=TODAY_TOOL, toolset="cardlake", schema=TODAY_SCHEMA,
         handler=lambda args, **kwargs: today_tool(ctx, args, **kwargs),
         description=TODAY_SCHEMA["description"], emoji="☀️",
     )
-    ctx.register_system_prompt_section("cardlake", CHAT_GUIDE)
-    ctx.register_hook("post_tool_call", note_cardlake_use)
-    ctx.register_hook("transform_llm_output", add_open_link)
-    ctx.register_hook("pre_tool_call", lambda **kwargs: block_morning_changes(ctx, **kwargs))
     ctx.register_automation_blueprint(
         "morning",
         title=MORNING_TITLE,

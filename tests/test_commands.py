@@ -1,5 +1,6 @@
 import json
 import unittest
+import unittest.mock
 from datetime import datetime
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -349,6 +350,40 @@ class OpenLinkTest(unittest.TestCase):
         for n in range(plugin._MAX_TRACKED_TURNS + 50):
             plugin.note_cardlake_use(tool_name=commands.TOOL_PREFIX + "list_feed", session_id=str(n))
         self.assertEqual(len(plugin._TURNS_USING_CARDLAKE), plugin._MAX_TRACKED_TURNS)
+
+
+class OlderHermesTest(unittest.TestCase):
+    """Hermes switches the whole plugin off if register() raises."""
+
+    class OldCtx:
+        def __init__(self, hooks=True):
+            self.commands, self.hooks, self.hooks_work = [], [], hooks
+
+        def register_command(self, name, handler, **kwargs):
+            self.commands.append(name)
+
+        def register_hook(self, name, callback, **kwargs):
+            if not self.hooks_work:
+                raise AttributeError("no hooks here")
+            self.hooks.append(name)
+
+    def test_commands_load_without_tools_prompt_sections_or_blueprints(self):
+        ctx = self.OldCtx()
+        plugin.register(ctx)
+        self.assertEqual(ctx.commands, ["cardlake"])
+        self.assertIn("pre_tool_call", ctx.hooks)
+
+    def test_commands_load_even_without_hooks(self):
+        ctx = self.OldCtx(hooks=False)
+        plugin.register(ctx)
+        self.assertEqual(ctx.commands, ["cardlake"])
+
+    def test_morning_job_is_skipped_when_its_guard_cannot_be_added(self):
+        ctx = self.OldCtx(hooks=False)
+        ctx.register_tool = ctx.register_automation_blueprint = unittest.mock.Mock()
+        plugin.register(ctx)
+        ctx.register_tool.assert_not_called()
+        ctx.register_automation_blueprint.assert_not_called()
 
 
 class TelegramFormattingTest(unittest.TestCase):
