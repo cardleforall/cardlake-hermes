@@ -150,17 +150,17 @@ def _head(heading: str, summary: str) -> str:
 
 
 def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "",
-          lead: str = "") -> list[tuple[str, Optional[dict]]]:
+          lead: str = "", full: int = FULL_CARDS, head_on_first: bool = True) -> list[tuple[str, Optional[dict]]]:
     """The message in parts, for Telegram buttons: (text, the card it shows) for each card shown in
     full, the heading riding on the first, then (text, None) for the rest. No link line: in
     Telegram that's a button."""
-    shown = cards[:MAX_CARDS]
+    shown = cards[:max(MAX_CARDS, full)]
     head = _head(heading, summary)
-    parts: list[tuple[str, Optional[dict]]] = [(panel(card, now), card) for card in shown[:FULL_CARDS]]
-    if parts:
+    parts: list[tuple[str, Optional[dict]]] = [(panel(card, now), card) for card in shown[:full]]
+    if parts and head_on_first:
         parts[0] = (f"{head}\n\n{parts[0][0]}", parts[0][1])
     tail = []
-    rest = shown[FULL_CARDS:]
+    rest = shown[full:]
     if rest:
         tail.append("\n".join(line(card, now) for card in rest))
     if len(cards) > len(shown):
@@ -178,9 +178,10 @@ def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hin
     return parts
 
 
-def render(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "") -> str:
+def render(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "",
+           full: int = FULL_CARDS) -> str:
     """A heading, the first cards as panels, the rest as single lines, and the link."""
-    return with_open_link("\n\n".join(text for text, _ in split(cards, now, heading, summary, hint)))
+    return with_open_link("\n\n".join(text for text, _ in split(cards, now, heading, summary, hint, full=full)))
 
 
 def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
@@ -223,24 +224,89 @@ def today_cards(cards: list[dict], now: datetime) -> list[dict]:
 
 
 _TODAY_HINT = 'Reply "done", "tomorrow" or "next week" with a card\'s name to update it.'
+TODAY_FULL = 5  # everything in Today needs you, so more of it gets buttons than the feed's 3
 
 
-def _today_args(cards: list[dict], now: datetime) -> Optional[tuple]:
-    due = today_cards(cards, now)
-    if not due:
-        return None
+def today_heading(now: datetime) -> str:
+    return f"☀️ Today in Cardlake, {now:%a} {now.day} {now:%b}"
+
+
+def _today_summary(due: list[dict], now: datetime) -> str:
     overdue = sum(is_overdue(c, now) for c in due)
     bits = [f"{overdue} overdue" if overdue else "", f"{len(due) - overdue} due today" if len(due) > overdue else ""]
-    return due, now, f"☀️ Today in Cardlake, {now:%a} {now.day} {now:%b}", ", ".join(b for b in bits if b)
+    return ", ".join(b for b in bits if b)
 
 
 def render_today(cards: list[dict], now: datetime) -> Optional[str]:
     """Today's message, or None when nothing is overdue or due today."""
-    args = _today_args(cards, now)
-    return render(*args, hint=_TODAY_HINT) if args else None
+    due = today_cards(cards, now)
+    if not due:
+        return None
+    return render(due, now, today_heading(now), _today_summary(due, now), hint=_TODAY_HINT)
 
 
 def split_today(cards: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
-    """With buttons under each card, the reply-to-update hint isn't needed."""
-    args = _today_args(cards, now)
-    return split(*args, lead=_TAIL_LEAD) if args else []
+    """Today's cards in parts. The heading goes on the checklist (see checklist()), and with buttons
+    under each card the reply-to-update hint isn't needed."""
+    due = today_cards(cards, now)
+    return split(due, now, today_heading(now), lead=_TAIL_LEAD, full=TODAY_FULL, head_on_first=False) if due else []
+
+
+# Marks for the pinned checklist, by what a button did (see buttons.py).
+_DONE_MARKS = {"Done": "✅", "Marked as watched": "✅", "Snoozed until tomorrow": "⏰", "Snoozed for a week": "📅"}
+
+
+def checklist(cards: list[dict], now: datetime, results: dict[str, str]) -> str:
+    """The pinned Today message: one line per card, ticked off as buttons are used, then 'All clear'."""
+    lines = []
+    for card in cards[:MAX_CARDS]:
+        title = plain(card.get("title")) or "Untitled"
+        result = results.get(str(card.get("id")))
+        if result:
+            lines.append(f"{_DONE_MARKS.get(result, '✓')} {title} · {result.lower()}")
+        else:
+            lines.append(f"⬜ {title}")
+    if len(cards) > MAX_CARDS:
+        lines.append(f"…and {len(cards) - MAX_CARDS} more in Cardlake.")
+    open_count = sum(1 for card in cards if not results.get(str(card.get("id"))))
+    summary = _today_summary(cards, now) if open_count else "all clear ✓"
+    body = "\n".join(lines)
+    if not open_count:
+        body += "\n\n**Nothing left for today.** 🎉"
+    return f"{_head(today_heading(now), summary)}\n\n{body}"
+
+
+DEAL_SIZE = 5
+
+
+def deal(cards: list[dict], now: datetime, pick=None) -> list[dict]:
+    """Five cards to look at again, like the app's Deal me 5: cards that aren't already shouting for
+    attention (overdue, due today or pinned) and aren't finished. pick(population, k) chooses; random
+    by default."""
+    import random
+    pool = [c for c in cards if not (is_overdue(c, now) or is_due_today(c, now) or c.get("pinned_at"))]
+    pick = pick or random.sample
+    return pick(pool, min(DEAL_SIZE, len(pool)))
+
+
+_DEAL_HEADING = "🃏 Deal me 5"
+_DEAL_SUMMARY = "cards to look at again"
+
+
+def render_deal(dealt: list[dict], now: datetime) -> str:
+    if not dealt:
+        return with_open_link("Nothing to deal: everything in your feed is due, pinned or done.")
+    return render(dealt, now, _DEAL_HEADING, _DEAL_SUMMARY, full=DEAL_SIZE)
+
+
+def split_deal(dealt: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
+    return split(dealt, now, _DEAL_HEADING, _DEAL_SUMMARY, full=DEAL_SIZE) if dealt else []
+
+
+def video_url(card: dict) -> str:
+    """The link a learning card's own message previews (a talk or course), or ''. Other cards'
+    links stay unpreviewed so a feed doesn't turn into a wall of article thumbnails."""
+    if card.get("type") != "learning":
+        return ""
+    url = str((card.get("metadata") or {}).get("url") or "").strip()
+    return url if re.match(r"https?://[^\s()]+$", url) else ""

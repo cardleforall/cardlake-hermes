@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 
 from . import cards as card_logic
 from . import feed_view
@@ -20,6 +20,7 @@ USAGE = (
     "Usage:\n"
     "/cardlake feed: show your feed\n"
     "/cardlake today: what's overdue or due today\n"
+    "/cardlake deal: five cards to look at again\n"
     "/cardlake save <text>: save text as a card\n"
     "/cardlake snooze <text>: snooze the card that matches"
 )
@@ -33,6 +34,7 @@ _TYPE_LABELS = {
 }
 _FEED_SIZE = 20
 _TODAY_SCAN = 50  # due and overdue reminders come first in the feed's order
+_DEAL_SCAN = 50
 _QUERY_LIMIT = 100  # search_cards refuses longer queries
 
 
@@ -126,15 +128,22 @@ def _feed(ctx, limit: int) -> list[dict]:
     return [c for c in cards if isinstance(c, dict)]
 
 
-def feed_with_cards(ctx) -> tuple[str, list]:
-    """The feed as one message, and in parts for Telegram buttons."""
+class Reply(NamedTuple):
+    """A reply as one plain message (`text`), and in parts for Telegram buttons; `today` (its cards
+    and the time) asks for a pinned checklist first."""
+    text: str
+    parts: list
+    today: Optional[tuple] = None
+
+
+def feed_reply(ctx) -> Reply:
     now = local_now()
     cards = _feed(ctx, _FEED_SIZE)
-    return feed_view.render_feed(cards, now), feed_view.split_feed(cards, now)
+    return Reply(feed_view.render_feed(cards, now), feed_view.split_feed(cards, now))
 
 
 def show_feed(ctx) -> str:
-    return feed_with_cards(ctx)[0]
+    return feed_reply(ctx).text
 
 
 def today_message(ctx) -> Optional[str]:
@@ -142,17 +151,25 @@ def today_message(ctx) -> Optional[str]:
     return feed_view.render_today(_feed(ctx, _TODAY_SCAN), local_now())
 
 
-def today_with_cards(ctx) -> tuple[str, list]:
+def today_reply(ctx) -> Optional[Reply]:
+    """Today's reply, or None when nothing is overdue or due today."""
     now = local_now()
     cards = _feed(ctx, _TODAY_SCAN)
     text = feed_view.render_today(cards, now)
     if text is None:
-        return with_open_link("Nothing is overdue or due today."), []
-    return text, feed_view.split_today(cards, now)
+        return None
+    return Reply(text, feed_view.split_today(cards, now), (feed_view.today_cards(cards, now), now))
 
 
 def show_today(ctx) -> str:
-    return today_with_cards(ctx)[0]
+    reply = today_reply(ctx)
+    return reply.text if reply else with_open_link("Nothing is overdue or due today.")
+
+
+def deal_reply(ctx, pick=None) -> Reply:
+    now = local_now()
+    dealt = feed_view.deal(_feed(ctx, _DEAL_SCAN), now, pick)
+    return Reply(feed_view.render_deal(dealt, now), feed_view.split_deal(dealt, now))
 
 
 def _describe(card: dict) -> str:
@@ -208,14 +225,17 @@ def _choose(ctx, matches: list[dict]) -> Optional[dict]:
     return matches[int(picked)] if picked is not None else None
 
 
-def _with_buttons(buttons, text: str, parts: list) -> str:
-    """Posts the message with Telegram buttons when it can; then Hermes has nothing left to send."""
+def send_with_buttons(buttons, reply: Reply) -> bool:
+    """Sends the reply as Telegram cards with buttons when it can; then Hermes has nothing to send."""
     try:
-        if buttons is not None and buttons.send(text, parts):
-            return ""
+        return buttons is not None and buttons.send(reply.parts, reply.today)
     except Exception:
         logger.warning("Cardlake: buttons failed, sending plain text", exc_info=True)
-    return text
+        return False
+
+
+def _reply(buttons, reply: Reply) -> str:
+    return "" if send_with_buttons(buttons, reply) else reply.text
 
 
 def handle(ctx, raw_args: str, buttons=None) -> str:
@@ -223,9 +243,12 @@ def handle(ctx, raw_args: str, buttons=None) -> str:
     verb, rest = verb.lower(), rest.strip()
     try:
         if verb == "feed" and not rest:
-            return _with_buttons(buttons, *feed_with_cards(ctx))
+            return _reply(buttons, feed_reply(ctx))
         if verb == "today" and not rest:
-            return _with_buttons(buttons, *today_with_cards(ctx))
+            reply = today_reply(ctx)
+            return _reply(buttons, reply) if reply else with_open_link("Nothing is overdue or due today.")
+        if verb == "deal" and not rest:
+            return _reply(buttons, deal_reply(ctx))
         if verb == "save":
             return with_open_link(save(ctx, rest))
         if verb == "snooze":

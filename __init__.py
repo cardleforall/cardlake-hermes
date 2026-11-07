@@ -6,8 +6,8 @@ import json
 import logging
 from collections import OrderedDict
 
-from .buttons import TelegramButtons
-from .commands import OPEN_LINK, TOOL_PREFIX, call_cardlake, handle, today_message
+from .buttons import TelegramCards
+from .commands import OPEN_LINK, TOOL_PREFIX, call_cardlake, handle, send_with_buttons, today_reply
 from .feed_view import with_open_link
 
 logger = logging.getLogger(__name__)
@@ -63,10 +63,15 @@ def block_morning_changes(ctx, tool_name: str = "", **_kwargs):
     return _BLOCK if run is not None and run.job_name == MORNING_TITLE else None
 
 
-def today_tool(ctx, args: dict, **_kwargs) -> str:
-    """Laid out here rather than by the model, so the message looks the same every morning."""
+def today_tool(ctx, args: dict, buttons=None, **_kwargs) -> str:
+    """Laid out here rather than by the model, so the message looks the same every morning. In
+    Telegram the plugin sends it itself, as cards with buttons under a pinned checklist, and the job
+    then has nothing left to say."""
     try:
-        return json.dumps({"text": today_message(ctx) or "[SILENT]"})
+        reply = today_reply(ctx)
+        if reply is None or send_with_buttons(buttons, reply):
+            return json.dumps({"text": "[SILENT]"})
+        return json.dumps({"text": reply.text})
     except Exception as exc:  # a tool handler must answer, never raise
         logger.warning("Cardlake: today's message failed", exc_info=True)
         return json.dumps({"error": f"Cardlake couldn't be reached: {exc}"})
@@ -111,11 +116,11 @@ def _optional(what: str, register_fn) -> None:
 
 
 def register(ctx) -> None:
-    buttons = TelegramButtons(ctx, lambda tool, args: call_cardlake(ctx, tool, args))
+    buttons = TelegramCards(ctx, lambda tool, args: call_cardlake(ctx, tool, args))
     ctx.register_command(
         "cardlake", lambda raw_args: handle(ctx, raw_args, buttons),
-        description="See your Cardlake feed and what's due, save a card, or snooze one",
-        args_hint="feed|today|save <text>|snooze <text>",
+        description="See your Cardlake feed and what's due, get five cards to look at again, save a card, or snooze one",
+        args_hint="feed|today|deal|save <text>|snooze <text>",
     )
     # The guard comes before the morning job that it protects, and the job is skipped if the guard is.
     try:
@@ -132,13 +137,13 @@ def register(ctx) -> None:
     _optional("Telegram buttons", lambda: ctx.register_telegram_handler(buttons.attach))
     _optional("the chat guide", lambda: ctx.register_system_prompt_section("cardlake", CHAT_GUIDE))
     if guarded:
-        _optional("the morning message", lambda: _register_morning(ctx))
+        _optional("the morning message", lambda: _register_morning(ctx, buttons))
 
 
-def _register_morning(ctx) -> None:
+def _register_morning(ctx, buttons=None) -> None:
     ctx.register_tool(
         name=TODAY_TOOL, toolset="cardlake", schema=TODAY_SCHEMA,
-        handler=lambda args, **kwargs: today_tool(ctx, args, **kwargs),
+        handler=lambda args, **kwargs: today_tool(ctx, args, buttons, **kwargs),
         description=TODAY_SCHEMA["description"], emoji="☀️",
     )
     ctx.register_automation_blueprint(
