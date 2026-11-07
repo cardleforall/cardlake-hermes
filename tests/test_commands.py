@@ -102,6 +102,17 @@ class PeriodCommandTest(unittest.TestCase):
         self.assertEqual(len(ctx.plain_prompts), 1)
         self.assertEqual([tool for tool, _ in ctx.written()], ["create_work_item"])
 
+    def test_unreadable_answer_is_not_reported_as_nothing_useful(self):
+        ctx = FakeCtx(llm_answer=None, reply_text="I looked through them and found a few things worth keeping.")
+        reply = run(ctx, "today", [CHAT])
+        self.assertIn("couldn't be read", reply)
+        self.assertNotIn("Nothing useful", reply)
+        self.assertEqual(ctx.written(), [])
+
+    def test_nothing_useful_says_how_many_conversations_were_read(self):
+        ctx = FakeCtx(llm_answer=picked())
+        self.assertIn("(2 conversations read)", run(ctx, "today", [CHAT, CHAT]))
+
     def test_slow_providers_get_more_than_hermes_default_30_seconds(self):
         ctx = FakeCtx(llm_answer=picked())
         run(ctx, "today", [CHAT])

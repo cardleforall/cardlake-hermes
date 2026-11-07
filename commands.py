@@ -126,6 +126,10 @@ def _already_added(ctx, title: str) -> bool:
     return any(str(card.get("title", "")).strip().casefold() == redact_text(title).strip().casefold() for card in cards)
 
 
+def _count(number: int, noun: str) -> str:
+    return f"{number} {noun}" + ("" if number == 1 else "s")
+
+
 def add_from_period(ctx, period: str) -> str:
     label = _PERIOD_LABELS[period]
     now = local_now()
@@ -148,9 +152,14 @@ def add_from_period(ctx, period: str) -> str:
     except Exception:
         logger.warning("Cardlake: model call failed", exc_info=True)
         return "Couldn't reach your model to read the conversations, so nothing was added."
+    # "Nothing useful" must mean the model looked and chose nothing, not that its answer was unreadable.
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("cards"), list):
+        logger.warning("Cardlake: model answer had no card list (got %s)", type(parsed).__name__)
+        return "Your model's answer couldn't be read, so nothing was added. Try again, or try another model."
     picked = card_logic.parse_picked(parsed, batch.conversations)
     if not picked:
-        return f"Nothing useful in {label} conversations, so nothing was added."
+        return (f"Nothing useful in {label} conversations, so nothing was added "
+                f"({_count(len(batch.conversations), 'conversation')} read).")
     return _add_cards(ctx, picked, label, batch.trimmed)
 
 
