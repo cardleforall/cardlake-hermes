@@ -126,11 +126,11 @@ def _feed(ctx, limit: int) -> list[dict]:
     return [c for c in cards if isinstance(c, dict)]
 
 
-def feed_with_cards(ctx) -> tuple[str, list[dict]]:
-    """The feed message, and its cards in the order shown (for the buttons)."""
+def feed_with_cards(ctx) -> tuple[str, list]:
+    """The feed as one message, and in parts for Telegram buttons."""
     now = local_now()
     cards = _feed(ctx, _FEED_SIZE)
-    return feed_view.render_feed(cards, now), feed_view.by_urgency(cards, now)
+    return feed_view.render_feed(cards, now), feed_view.split_feed(cards, now)
 
 
 def show_feed(ctx) -> str:
@@ -142,13 +142,13 @@ def today_message(ctx) -> Optional[str]:
     return feed_view.render_today(_feed(ctx, _TODAY_SCAN), local_now())
 
 
-def today_with_cards(ctx) -> tuple[str, list[dict]]:
+def today_with_cards(ctx) -> tuple[str, list]:
     now = local_now()
     cards = _feed(ctx, _TODAY_SCAN)
     text = feed_view.render_today(cards, now)
     if text is None:
         return with_open_link("Nothing is overdue or due today."), []
-    return text, feed_view.today_cards(cards, now)
+    return text, feed_view.split_today(cards, now)
 
 
 def show_today(ctx) -> str:
@@ -208,10 +208,10 @@ def _choose(ctx, matches: list[dict]) -> Optional[dict]:
     return matches[int(picked)] if picked is not None else None
 
 
-def _with_buttons(buttons, text: str, cards: list[dict]) -> str:
+def _with_buttons(buttons, text: str, parts: list) -> str:
     """Posts the message with Telegram buttons when it can; then Hermes has nothing left to send."""
     try:
-        if buttons is not None and buttons.send(text, cards):
+        if buttons is not None and buttons.send(text, parts):
             return ""
     except Exception:
         logger.warning("Cardlake: buttons failed, sending plain text", exc_info=True)

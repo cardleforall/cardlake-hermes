@@ -141,22 +141,41 @@ def _count(number: int, noun: str) -> str:
     return f"{number} {noun}" + ("" if number == 1 else "s")
 
 
-def render(cards: list[dict], now: datetime, heading: str, summary: str = "") -> str:
-    """A heading, the first cards as panels, the rest as single lines, and the link."""
-    shown = cards[:MAX_CARDS]
+def _head(heading: str, summary: str) -> str:
     # Telegram previews the first link in a message. Linking the heading makes that Cardlake,
     # not whichever video or article happens to be the first card. Hermes can only turn
     # previews off for every message it sends, so this keeps the choice to this plugin.
     head = f"**[{heading}]({OPEN_LINK})**"
-    if summary:
-        head += f" · {summary}"
-    parts = [head] + [panel(card, now) for card in shown[:FULL_CARDS]]
+    return f"{head} · {summary}" if summary else head
+
+
+def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "") -> list[tuple[str, Optional[dict]]]:
+    """The message in parts, for Telegram buttons: (text, the card it shows) for each card shown in
+    full, the heading riding on the first, then (text, None) for the rest. No link line: in
+    Telegram that's a button."""
+    shown = cards[:MAX_CARDS]
+    head = _head(heading, summary)
+    parts: list[tuple[str, Optional[dict]]] = [(panel(card, now), card) for card in shown[:FULL_CARDS]]
+    if parts:
+        parts[0] = (f"{head}\n\n{parts[0][0]}", parts[0][1])
+    tail = []
     rest = shown[FULL_CARDS:]
     if rest:
-        parts.append("\n".join(line(card, now) for card in rest))
+        tail.append("\n".join(line(card, now) for card in rest))
     if len(cards) > len(shown):
-        parts.append(f"…and {len(cards) - len(shown)} more in Cardlake.")
-    return with_open_link("\n\n".join(parts))
+        tail.append(f"…and {len(cards) - len(shown)} more in Cardlake.")
+    if hint:
+        tail.append(f"*{hint}*")
+    if not parts:
+        tail.insert(0, head)
+    if tail:
+        parts.append(("\n\n".join(tail), None))
+    return parts
+
+
+def render(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "") -> str:
+    """A heading, the first cards as panels, the rest as single lines, and the link."""
+    return with_open_link("\n\n".join(text for text, _ in split(cards, now, heading, summary, hint)))
 
 
 def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
@@ -172,12 +191,20 @@ def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
     return sorted(cards, key=rank)
 
 
+def _feed_args(cards: list[dict], now: datetime) -> tuple:
+    overdue = sum(is_overdue(c, now) for c in cards)
+    summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue else "")
+    return by_urgency(cards, now), now, "🗂 Your Cardlake feed", summary
+
+
 def render_feed(cards: list[dict], now: datetime) -> str:
     if not cards:
         return with_open_link("Your Cardlake feed is empty.")
-    overdue = sum(is_overdue(c, now) for c in cards)
-    summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue else "")
-    return render(by_urgency(cards, now), now, "🗂 Your Cardlake feed", summary)
+    return render(*_feed_args(cards, now))
+
+
+def split_feed(cards: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
+    return split(*_feed_args(cards, now)) if cards else []
 
 
 def today_cards(cards: list[dict], now: datetime) -> list[dict]:
@@ -187,14 +214,25 @@ def today_cards(cards: list[dict], now: datetime) -> list[dict]:
     return overdue + today
 
 
-def render_today(cards: list[dict], now: datetime) -> Optional[str]:
-    """Today's message, or None when nothing is overdue or due today."""
+_TODAY_HINT = 'Reply "done", "tomorrow" or "next week" with a card\'s name to update it.'
+
+
+def _today_args(cards: list[dict], now: datetime) -> Optional[tuple]:
     due = today_cards(cards, now)
     if not due:
         return None
     overdue = sum(is_overdue(c, now) for c in due)
     bits = [f"{overdue} overdue" if overdue else "", f"{len(due) - overdue} due today" if len(due) > overdue else ""]
-    body = render(due, now, f"☀️ Today in Cardlake, {now:%a} {now.day} {now:%b}", ", ".join(b for b in bits if b))
-    hint = 'Reply "done", "tomorrow" or "next week" with a card\'s name to update it.'
-    head, _, link = body.rpartition("\n\nOpen Cardlake:")
-    return f"{head}\n\n*{hint}*\n\nOpen Cardlake:{link}"
+    return due, now, f"☀️ Today in Cardlake, {now:%a} {now.day} {now:%b}", ", ".join(b for b in bits if b)
+
+
+def render_today(cards: list[dict], now: datetime) -> Optional[str]:
+    """Today's message, or None when nothing is overdue or due today."""
+    args = _today_args(cards, now)
+    return render(*args, hint=_TODAY_HINT) if args else None
+
+
+def split_today(cards: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
+    """With buttons under each card, the reply-to-update hint isn't needed."""
+    args = _today_args(cards, now)
+    return split(*args) if args else []

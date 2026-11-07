@@ -39,7 +39,7 @@ Each card is a quote block, which Telegram shows as a panel: its type, whether i
 
 No boxes or ASCII art, which only line up in a terminal.
 
-In your private Telegram chat with Hermes, `/cardlake feed` and `/cardlake today` also get buttons: for each card shown in full, ✅ to mark it done (reminders and learnings), ⏰ Tomorrow and 📅 Next week to snooze it, and 🔗 Open Cardlake. A tap changes only that card, and its row then says what happened. Buttons are left out in group chats, on other platforms, and on Hermes versions without plugin button support; there you get the same message as text.
+In your private Telegram chat with Hermes, `/cardlake feed` and `/cardlake today` send each of the top cards as its own message, with its buttons right under it: ✅ Done (reminders and learnings), ⏰ Tomorrow and 📅 Next week. The rest of the list follows, with a 🔗 Open Cardlake button. A tap changes only the card above it, and its buttons then say what happened. Group chats, other platforms and Hermes versions without plugin button support get the whole feed as one message instead.
 
 Telegram previews the first link in a message, so the heading links to Cardlake: the preview under your feed is Cardlake's, not a video or article from one of your cards. To turn previews off altogether, add this to `~/.hermes/config.yaml` and restart the gateway. It applies to every Telegram message Hermes sends:
 
