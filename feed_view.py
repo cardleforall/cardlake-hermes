@@ -15,7 +15,9 @@ from typing import Any, NamedTuple, Optional
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-OPEN_LINK = "https://cardlake.app/vault/"
+from .address import ADDRESS
+
+OPEN_LINK = f"{ADDRESS}/vault/"
 FULL_CARDS = 3  # shown as panels; the rest get one line each
 MAX_CARDS = 8   # a chat message isn't the place for the whole feed; the link is
 

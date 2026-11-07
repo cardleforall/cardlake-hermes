@@ -2,7 +2,7 @@
 
 Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nousresearch.com), laid out as cards in Telegram, with what's due sent to you each morning.
 
-You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It doesn't work yet with self-hosted copies of Cardlake.
+You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It works with a self-hosted copy of Cardlake too: see [Self-hosted Cardlake](#self-hosted-cardlake).
 
 ## Install
 
@@ -21,6 +21,18 @@ hermes mcp add cardlake --url https://cardlake.app/api/mcp --auth oauth
 Keep the name `cardlake`, and don't add a client name, client id or fixed port: those turn off the sign-in Cardlake accepts. To sign in again later, run `hermes mcp login cardlake`.
 
 This is a separate step because a Hermes plugin with commands can't carry a sign-in connection of its own.
+
+## Self-hosted Cardlake
+
+Connect to your own copy's address instead of cardlake.app, keeping the name `cardlake`:
+
+```bash
+hermes mcp add cardlake --url https://cardlake.example.com/api/mcp --auth oauth
+```
+
+There's nothing else to set. The plugin reads that address from Hermes, so every Open Cardlake link and button opens your copy. Restart Hermes after changing it. If your copy's web pages are on a different address from its API, set `CARDLAKE_URL` to the web address (for example `https://cardlake.example.com`) in Hermes' `.env`.
+
+Your copy needs Cardlake's sign-in and tools: the plugin uses the same ones as cardlake.app.
 
 ## Commands
 
@@ -71,7 +83,7 @@ Whether Hermes uses the tool is up to your model. To be sure, ask for it: "show 
 
 - **Reply to update.** Say "done", "tomorrow" or "next week" with a card's name, or in reply to a card, and Hermes updates it. If more than one card matches, it asks which.
 - **Forward to save.** Forward a link or a message, or send a voice note, with nothing else, and Hermes saves it as one card: articles, videos and courses as learnings, other links as bookmarks, anything with a date as a reminder, the rest as Misc.
-- **Link to your feed.** Every `/cardlake` reply, and any reply in which Hermes used Cardlake, ends with `Open Cardlake: https://cardlake.app/vault/`. Other replies are left alone.
+- **Link to your feed.** Every `/cardlake` reply, and any reply in which Hermes used Cardlake, ends with `Open Cardlake: https://cardlake.app/vault/` (or your own copy's address). Other replies are left alone.
 
 ## Morning message
 

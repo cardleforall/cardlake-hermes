@@ -8,14 +8,14 @@ from typing import Any, NamedTuple, Optional
 
 from . import cards as card_logic
 from . import feed_view
+from .address import ADDRESS, SERVER_NAME
 from .feed_view import OPEN_LINK, local_now, with_open_link
 from .redact import redact, redact_text
 
 logger = logging.getLogger(__name__)
 
-SERVER_NAME = "cardlake"
 TOOL_PREFIX = f"mcp__{SERVER_NAME}__"
-CONNECT_COMMAND = "hermes mcp add cardlake --url https://cardlake.app/api/mcp --auth oauth"
+CONNECT_COMMAND = f"hermes mcp add {SERVER_NAME} --url {ADDRESS}/api/mcp --auth oauth"
 USAGE = (
     "Usage:\n"
     "/cardlake feed: show your feed\n"
