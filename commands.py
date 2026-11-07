@@ -7,7 +7,8 @@ import logging
 from typing import Any, Optional
 
 from . import cards as card_logic
-from .conversations import local_now, period_window, read_conversations
+from . import feed_view
+from .feed_view import OPEN_LINK, local_now, with_open_link
 from .redact import redact, redact_text
 
 logger = logging.getLogger(__name__)
@@ -17,8 +18,8 @@ TOOL_PREFIX = f"mcp__{SERVER_NAME}__"
 CONNECT_COMMAND = "hermes mcp add cardlake --url https://cardlake.app/api/mcp --auth oauth"
 USAGE = (
     "Usage:\n"
-    "/cardlake today | yesterday | week: add up to 3 cards from that period's conversations\n"
     "/cardlake feed: show your feed\n"
+    "/cardlake today: what's overdue or due today\n"
     "/cardlake save <text>: save text as a card\n"
     "/cardlake snooze <text>: snooze the card that matches"
 )
@@ -26,19 +27,12 @@ NOT_CONNECTED = (
     "Cardlake isn't connected, so nothing changed. Run this in a terminal, sign in, then start a new session:\n"
     f"{CONNECT_COMMAND}"
 )
-OPEN_LINK = "https://cardlake.app/vault/"
-
-
-def with_open_link(text: str) -> str:
-    return f"{text.rstrip()}\n\nOpen Cardlake: {OPEN_LINK}"
-
-
-_PERIOD_LABELS = {"today": "today's", "yesterday": "yesterday's", "week": "the past week's"}
 _TYPE_LABELS = {
     "reminder": "Reminder", "learning": "Learning", "kanban": "GitHub issue", "work": "Work item",
     "family": "Family", "bookmark": "Bookmark", "talking_point": "Misc", "file": "File",
 }
-_FEED_SIZE = 10
+_FEED_SIZE = 20
+_TODAY_SCAN = 50  # due and overdue reminders come first in the feed's order
 _QUERY_LIMIT = 100  # search_cards refuses longer queries
 
 
@@ -77,8 +71,8 @@ def call_cardlake(ctx, tool: str, args: dict) -> Any:
 
 
 _MAX_REPLY_TOKENS = 4000  # room for models that think before answering
-# Hermes gives side requests 30 seconds unless told otherwise. Reading a day of conversations
-# takes longer than that on slower providers, such as ones that run a separate program.
+# Hermes gives side requests 30 seconds unless told otherwise, which slower providers,
+# such as ones that run a separate program, can need more than.
 _MODEL_TIMEOUT_SECONDS = 180.0
 
 
@@ -126,85 +120,23 @@ def _ask_model(ctx, instructions: str, prompt: str, schema: dict, purpose: str) 
     return _json_from_text(result.text)
 
 
-def _already_added(ctx, title: str) -> bool:
-    """Running /cardlake today twice shouldn't add the same card twice."""
-    found = call_cardlake(ctx, "search_cards", {"query": title[:_QUERY_LIMIT], "limit": 10})
-    cards = found.get("cards", []) if isinstance(found, dict) else []
-    return any(str(card.get("title", "")).strip().casefold() == redact_text(title).strip().casefold() for card in cards)
-
-
-def _count(number: int, noun: str) -> str:
-    return f"{number} {noun}" + ("" if number == 1 else "s")
-
-
-def add_from_period(ctx, period: str) -> str:
-    label = _PERIOD_LABELS[period]
-    now = local_now()
-    start, end = period_window(period, now)
-    try:
-        batch = read_conversations(start, end)
-    except Exception:
-        logger.warning("Cardlake: couldn't read conversations", exc_info=True)
-        return "Couldn't read your Hermes conversations, so nothing was added."
-    if not batch.conversations:
-        return f"No Hermes conversations in {label} window, so nothing was added."
-
-    # Check the connection first: no point paying for a model call that can't be saved.
-    call_cardlake(ctx, "list_feed", {"limit": 1})
-    try:
-        parsed = _ask_model(
-            ctx, card_logic.PICK_INSTRUCTIONS, card_logic.pick_prompt(batch.conversations, now),
-            card_logic.PICK_SCHEMA, f"pick.{period}",
-        )
-    except Exception:
-        logger.warning("Cardlake: model call failed", exc_info=True)
-        return "Couldn't reach your model to read the conversations, so nothing was added."
-    # "Nothing useful" must mean the model looked and chose nothing, not that its answer was unreadable.
-    if not isinstance(parsed, dict) or not isinstance(parsed.get("cards"), list):
-        logger.warning("Cardlake: model answer had no card list (got %s)", type(parsed).__name__)
-        return "Your model's answer couldn't be read, so nothing was added. Try again, or try another model."
-    picked = card_logic.parse_picked(parsed, batch.conversations)
-    if not picked:
-        return (f"Nothing useful in {label} conversations, so nothing was added "
-                f"({_count(len(batch.conversations), 'conversation')} read).")
-    return _add_cards(ctx, picked, label, batch.trimmed)
-
-
-def _add_cards(ctx, picked: list[card_logic.Card], label: str, trimmed: bool) -> str:
-    added, skipped, failed = [], [], []
-    for card in picked:
-        tool, args, kind = card_logic.to_tool_call(card)
-        title = redact_text(card.title)
-        line = f'{kind}: {title} (from "{card.source}")'
-        try:
-            if _already_added(ctx, card.title):
-                skipped.append(title)
-                continue
-            call_cardlake(ctx, tool, args)
-            added.append(line)
-        except NotConnected:
-            raise
-        except CardlakeError as exc:
-            failed.append(f"{title}: {exc}")
-
-    sections = []
-    if added:
-        sections.append(f"Added {len(added)} from {label} conversations:\n" + "\n".join(f"- {x}" for x in added))
-    if skipped:
-        sections.append("Already in Cardlake, so not added again:\n" + "\n".join(f"- {x}" for x in skipped))
-    if failed:
-        sections.append("Couldn't add:\n" + "\n".join(f"- {x}" for x in failed))
-    if trimmed:
-        sections.append("That was a lot of conversation, so I only read the most recent part of the longest ones.")
-    return "\n\n".join(sections)
+def _feed(ctx, limit: int) -> list[dict]:
+    feed = call_cardlake(ctx, "list_feed", {"limit": limit})
+    cards = feed.get("cards", []) if isinstance(feed, dict) else []
+    return [c for c in cards if isinstance(c, dict)]
 
 
 def show_feed(ctx) -> str:
-    feed = call_cardlake(ctx, "list_feed", {"limit": _FEED_SIZE})
-    cards = feed.get("cards", []) if isinstance(feed, dict) else []
-    if not cards:
-        return "Your Cardlake feed is empty."
-    return "Your Cardlake feed:\n" + "\n".join(f"- {_describe(card)}" for card in cards)
+    return feed_view.render_feed(_feed(ctx, _FEED_SIZE), local_now())
+
+
+def today_message(ctx) -> Optional[str]:
+    """What's overdue or due today, or None when nothing is."""
+    return feed_view.render_today(_feed(ctx, _TODAY_SCAN), local_now())
+
+
+def show_today(ctx) -> str:
+    return today_message(ctx) or with_open_link("Nothing is overdue or due today.")
 
 
 def _describe(card: dict) -> str:
@@ -215,7 +147,7 @@ def save(ctx, text: str) -> str:
     if not text:
         return "Usage: /cardlake save <text>"
     text = redact_text(text)
-    # Check the connection first, as in add_from_period.
+    # Check the connection first: no point paying for a model call that can't be saved.
     call_cardlake(ctx, "list_feed", {"limit": 1})
     try:
         parsed = _ask_model(ctx, card_logic.SAVE_INSTRUCTIONS, card_logic.save_prompt(text, local_now()),
@@ -264,10 +196,10 @@ def handle(ctx, raw_args: str) -> str:
     verb, _, rest = (raw_args or "").strip().partition(" ")
     verb, rest = verb.lower(), rest.strip()
     try:
-        if verb in _PERIOD_LABELS and not rest:
-            return with_open_link(add_from_period(ctx, verb))
         if verb == "feed" and not rest:
-            return with_open_link(show_feed(ctx))
+            return show_feed(ctx)
+        if verb == "today" and not rest:
+            return show_today(ctx)
         if verb == "save":
             return with_open_link(save(ctx, rest))
         if verb == "snooze":

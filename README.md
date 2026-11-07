@@ -1,6 +1,6 @@
 # Cardlake for Hermes Agent
 
-Turn your [Hermes](https://hermes-agent.nousresearch.com) conversations into [Cardlake](https://cardlake.app) cards, only when you ask.
+Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nousresearch.com), laid out as cards in Telegram, with what's due sent to you each morning.
 
 You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It doesn't work yet with self-hosted copies of Cardlake.
 
@@ -26,38 +26,36 @@ This is a separate step because a Hermes plugin with commands can't carry a sign
 
 | Command | What it does |
 | --- | --- |
-| `/cardlake today` | Adds up to 3 cards from today's conversations (midnight to now) |
-| `/cardlake yesterday` | The same for yesterday |
-| `/cardlake week` | The same for the past 7 days |
-| `/cardlake feed` | Shows the top of your feed |
-| `/cardlake save <text>` | Saves your text as a card |
+| `/cardlake feed` | Shows the top of your feed as cards |
+| `/cardlake today` | Shows reminders that are overdue or due today |
+| `/cardlake save <text>` | Saves your text as a card; your model picks the kind |
 | `/cardlake snooze <text>` | Snoozes the matching card until tomorrow. If several match, it asks which first |
-
-The first three go straight to your feed, then list what was added and which conversation each came from. If nothing is useful, they say so and add nothing. A card already in Cardlake with the same title isn't added again.
 
 Days follow your time zone: the `timezone` set in Hermes, otherwise your computer's.
 
-| From the conversation | Card |
-| --- | --- |
-| To-do | Work item, or a reminder if it has a date |
-| Something learned | Learning |
-| Decision or open question | Misc |
+## How cards look
 
-## Link to your feed
+Each card is a quote block, which Telegram shows as a panel: its type, whether it's overdue or due today, the title in bold, and a short link when it has one. The first 3 cards are shown in full and the rest get one line each, up to 8. No boxes or ASCII art, which only line up in a terminal.
 
-Cardlake is made to be seen, and a chat reply is text. So every `/cardlake` reply, and any Hermes reply in which Hermes used a Cardlake tool, ends with a link to open your feed: `Open Cardlake: https://cardlake.app/vault/`. Other replies are left alone.
+The plugin also tells Hermes to show cards the same way in ordinary replies, such as "what's on my plate?". Models follow this most of the time, not always.
 
-## Morning briefing
+## In chat
 
-Run `/blueprint`, pick **Cardlake morning briefing**, and choose a time. Each morning it sends a recap of yesterday to your Telegram home channel and offers `/cardlake yesterday`. A day with nothing useful sends no message.
+- **Reply to update.** Say "done", "tomorrow" or "next week" with a card's name, or in reply to a card, and Hermes updates it. If more than one card matches, it asks which.
+- **Forward to save.** Forward a link or a message, or send a voice note, with nothing else, and Hermes saves it as one card: articles, videos and courses as learnings, other links as bookmarks, anything with a date as a reminder, the rest as Misc.
+- **Link to your feed.** Every `/cardlake` reply, and any reply in which Hermes used Cardlake, ends with `Open Cardlake: https://cardlake.app/vault/`. Other replies are left alone.
 
-The briefing never adds, edits or deletes cards; the plugin blocks it from doing so. Keep the job's name as it is, because that's how the plugin recognizes it.
+## Morning message
+
+Run `/blueprint`, pick **Cardlake morning**, and choose a time. Each morning it sends your overdue and due-today reminders to your Telegram home channel, laid out as cards. A morning with nothing due sends nothing. It runs once a day, so a reminder due later that afternoon shows up in the next morning's message, not at the time it's due.
+
+The message is laid out by the plugin, not written by the model, so it looks the same every day. It never changes cards; the plugin blocks it from doing so. Keep the job's name as it is, because that's how the plugin recognizes it.
 
 ## Privacy and safety
 
 - Passwords, API keys and tokens are removed in code before anything is sent to Cardlake. The removal works by pattern, so it can't promise to catch every secret, and it sometimes removes harmless text that looks like one.
-- Conversation text also goes to the model you already use in Hermes, with those secrets removed.
-- Text in a conversation is treated as content, never as instructions. The model picks cards without access to any tools, and the plugin checks its answer: it can only create up to 3 cards.
+- `/cardlake save` sends your text to the model you already use in Hermes, with those secrets removed. The text is treated as content, never as instructions, and the plugin checks the model's answer: it can only create one card.
+- The plugin never reads your past Hermes conversations.
 
 ## Tests
 
