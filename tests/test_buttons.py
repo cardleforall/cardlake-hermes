@@ -412,8 +412,9 @@ class FilterTest(unittest.TestCase):
     def test_the_heading_and_count_name_the_filter(self):
         text = commands.handle(FakeCtx(feed=[LEARNING, dict(LEARNING, id="l2")]), "feed learning")
         self.assertIn("📚 Your learnings", text)
-        self.assertIn("2 learnings", text)
-        self.assertIn("1 family card", feed_view.render_feed([WORK], NOW, feed_view.find_filter("family")))
+        self.assertIn("· 2 cards", text)
+        tail = feed_view.split_feed([LEARNING] * 4 + MORE, NOW, feed_view.find_filter("learning"))[-1][0]
+        self.assertTrue(tail.startswith("**[More learnings]("))
 
     def test_an_empty_filter_says_so(self):
         self.assertIn("No family cards in your feed.", commands.handle(FakeCtx(feed=[]), "feed family"))

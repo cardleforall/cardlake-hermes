@@ -251,7 +251,8 @@ def find_filter(word: str) -> Optional[FeedFilter]:
 
 def _feed_args(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> tuple:
     overdue = sum(is_overdue(c, now) for c in cards)
-    summary = _count(len(cards), flt.noun if flt else "card") + (f", {overdue} overdue" if overdue and not (flt and flt.snoozed) else "")
+    # "cards", not the filter's noun: the heading already says what kind ("Your learnings · 6 cards").
+    summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue and not (flt and flt.snoozed) else "")
     if flt and flt.snoozed:
         # Cardlake already lists these by when they come back. Marked, so their buttons bring them back.
         return [dict(c, _snoozed=True) for c in cards], now, flt.heading, summary
@@ -273,7 +274,8 @@ def render_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = No
 
 
 def split_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> list[tuple[str, Optional[dict]]]:
-    return split(*_feed_args(cards, now, flt), lead=_TAIL_LEAD) if cards else []
+    lead = f"More {flt.noun}s" if flt else _TAIL_LEAD
+    return split(*_feed_args(cards, now, flt), lead=lead) if cards else []
 
 
 def today_cards(cards: list[dict], now: datetime) -> list[dict]:
