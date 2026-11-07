@@ -24,7 +24,11 @@ def load(module=None):
 class FakeCtx:
     """Records every Cardlake call and answers like Hermes's MCP tools do."""
 
-    def __init__(self, search_cards=(), feed=(), llm_answer=None, choice=None, connected=True):
+    def __init__(self, search_cards=(), feed=(), llm_answer=None, choice=None, connected=True,
+                 json_mode_error=None, reply_text=None):
+        """llm_answer: what Hermes parsed from the reply, or an exception for any model call.
+        json_mode_error: an exception for JSON-mode calls only, like a provider that refuses it.
+        reply_text: the raw reply text, for when Hermes couldn't parse it."""
         self.calls = []
         self.search_cards = list(search_cards)
         self.feed = list(feed)
@@ -32,14 +36,25 @@ class FakeCtx:
         self.connected = connected
         self.choice_asked = None
         self.prompts = []
+        self.plain_prompts = []
         self.llm_answer = llm_answer
-        self.llm = SimpleNamespace(complete_structured=self._complete)
+        self.json_mode_error = json_mode_error
+        self.reply_text = reply_text if reply_text is not None else json.dumps(llm_answer, default=str)
+        self.llm = SimpleNamespace(complete_structured=self._complete_structured, complete=self._complete)
 
-    def _complete(self, **kwargs):
+    def _complete_structured(self, **kwargs):
         self.prompts.append(kwargs)
+        for error in (self.llm_answer, self.json_mode_error):
+            if isinstance(error, Exception):
+                raise error
+        parsed = self.llm_answer if self.reply_text == json.dumps(self.llm_answer, default=str) else None
+        return SimpleNamespace(parsed=parsed, text=self.reply_text)
+
+    def _complete(self, messages, **kwargs):
+        self.plain_prompts.append(messages)
         if isinstance(self.llm_answer, Exception):
             raise self.llm_answer
-        return SimpleNamespace(parsed=self.llm_answer)
+        return SimpleNamespace(text=self.reply_text)
 
     def dispatch_tool(self, name, args):
         if not self.connected:

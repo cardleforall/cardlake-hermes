@@ -69,12 +69,42 @@ def call_cardlake(ctx, tool: str, args: dict) -> Any:
     return result
 
 
+_MAX_REPLY_TOKENS = 4000  # room for models that think before answering
+
+
+def _json_from_text(text: Any) -> Any:
+    """The JSON object in a model reply, allowing for fences or a sentence around it."""
+    if not isinstance(text, str):
+        return None
+    start, end = text.find("{"), text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        return json.loads(text[start:end + 1])
+    except ValueError:
+        return None
+
+
 def _ask_model(ctx, instructions: str, prompt: str, schema: dict, purpose: str) -> Any:
-    result = ctx.llm.complete_structured(
-        instructions=instructions, input=[{"type": "text", "text": prompt}], json_schema=schema,
-        temperature=0.0, max_tokens=1000, purpose=f"cardlake.{purpose}",
+    """Ask the user's model for JSON. The schema goes in the prompt rather than to the host:
+    the host rejects a whole reply over one stray field (a null date, a fourth card), and
+    cards.py already keeps only the valid parts. Models whose provider refuses JSON mode
+    get a plain request instead."""
+    instructions = f"{instructions}\n\nReply with JSON only, in this shape:\n{json.dumps(schema)}"
+    blocks = [{"type": "text", "text": prompt}]
+    try:
+        result = ctx.llm.complete_structured(
+            instructions=instructions, input=blocks, json_mode=True,
+            temperature=0.0, max_tokens=_MAX_REPLY_TOKENS, purpose=f"cardlake.{purpose}",
+        )
+        return result.parsed if result.parsed is not None else _json_from_text(result.text)
+    except Exception:
+        logger.warning("Cardlake: JSON-mode model call failed, retrying as plain text", exc_info=True)
+    result = ctx.llm.complete(
+        [{"role": "system", "content": instructions}, {"role": "user", "content": prompt}],
+        temperature=0.0, max_tokens=_MAX_REPLY_TOKENS, purpose=f"cardlake.{purpose}.plain",
     )
-    return result.parsed
+    return _json_from_text(result.text)
 
 
 def _already_added(ctx, title: str) -> bool:

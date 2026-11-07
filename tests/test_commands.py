@@ -80,6 +80,28 @@ class PeriodCommandTest(unittest.TestCase):
         self.assertIn("nothing was added", run(ctx, "today", [CHAT]))
         self.assertEqual(ctx.written(), [])
 
+    def test_host_never_rejects_a_reply_over_one_stray_field(self):
+        # A null date or a fourth card used to fail the whole reply in Hermes' schema check.
+        ctx = FakeCtx(llm_answer=picked({"kind": "todo", "title": "Email Sam", "due_date": None, "conversation": 1}))
+        run(ctx, "today", [CHAT])
+        self.assertNotIn("json_schema", ctx.prompts[0])
+        self.assertTrue(ctx.prompts[0]["json_mode"])
+        self.assertIn('"cards"', ctx.prompts[0]["instructions"])
+        self.assertEqual([tool for tool, _ in ctx.written()], ["create_work_item"])
+
+    def test_reads_json_wrapped_in_fences_when_hermes_could_not(self):
+        answer = picked({"kind": "todo", "title": "Email Sam", "conversation": 1})
+        ctx = FakeCtx(llm_answer=answer, reply_text=f"Here you go:\n```json\n{commands.json.dumps(answer)}\n```")
+        run(ctx, "today", [CHAT])
+        self.assertEqual([tool for tool, _ in ctx.written()], ["create_work_item"])
+
+    def test_provider_that_refuses_json_mode_gets_a_plain_request(self):
+        ctx = FakeCtx(llm_answer=picked({"kind": "todo", "title": "Email Sam", "conversation": 1}),
+                      json_mode_error=RuntimeError("response_format not supported"))
+        run(ctx, "today", [CHAT])
+        self.assertEqual(len(ctx.plain_prompts), 1)
+        self.assertEqual([tool for tool, _ in ctx.written()], ["create_work_item"])
+
     def test_not_connected_gives_the_connect_command_before_spending_on_the_model(self):
         ctx = FakeCtx(llm_answer=picked(), connected=False)
         self.assertIn(commands.CONNECT_COMMAND, run(ctx, "today", [CHAT]))
