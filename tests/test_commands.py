@@ -63,11 +63,15 @@ class StatusTest(unittest.TestCase):
 class FeedLayoutTest(unittest.TestCase):
     def test_cards_are_quote_panels_with_type_status_title_and_link(self):
         reply = run(FakeCtx(feed=[OVERDUE, LEARNING, MISC]), "feed")
-        self.assertIn("**🗂 Your Cardlake feed** · 3 cards, 1 overdue", reply)
+        self.assertIn("**[🗂 Your Cardlake feed](https://cardlake.app/vault/)** · 3 cards, 1 overdue", reply)
         self.assertIn("> 🔔 **Reminder** · ⚠️ overdue 42 days\n> **Watch Karpathy talk**", reply)
         self.assertIn("> 📚 **Learning**\n> **Jevons paradox**\n> [wikipedia.org](https://www.wikipedia.org/wiki/Jevons_paradox)", reply)
         self.assertIn("> 💬 **Misc**\n> **An idea**", reply)
         self.assertTrue(reply.endswith(LINK))
+
+    def test_first_link_is_cardlake_so_telegram_previews_it_not_a_card_link(self):
+        reply = run(FakeCtx(feed=[LEARNING, OVERDUE]), "feed")
+        self.assertLess(reply.index("](https://cardlake.app/vault/)"), reply.index("](https://www.wikipedia.org"))
 
     def test_cards_after_the_first_three_get_one_line_each(self):
         many = [dict(MISC, id=str(i), title=f"Idea {i}") for i in range(12)]
@@ -125,7 +129,7 @@ class FeedLayoutTest(unittest.TestCase):
 class TodayTest(unittest.TestCase):
     def test_lists_overdue_then_due_today_and_nothing_else(self):
         reply = run(FakeCtx(feed=[FUTURE, TODAY, LEARNING, OVERDUE, DONE]), "today")
-        self.assertIn("**☀️ Today in Cardlake, Sat 7 Nov** · 1 overdue, 1 due today", reply)
+        self.assertIn("**[☀️ Today in Cardlake, Sat 7 Nov](https://cardlake.app/vault/)** · 1 overdue, 1 due today", reply)
         self.assertLess(reply.index("Watch Karpathy talk"), reply.index("Call mum"))
         for absent in ("Dentist", "Jevons", "Old thing"):
             self.assertNotIn(absent, reply)

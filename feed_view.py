@@ -144,7 +144,10 @@ def _count(number: int, noun: str) -> str:
 def render(cards: list[dict], now: datetime, heading: str, summary: str = "") -> str:
     """A heading, the first cards as panels, the rest as single lines, and the link."""
     shown = cards[:MAX_CARDS]
-    head = f"**{heading}**"
+    # Telegram previews the first link in a message. Linking the heading makes that Cardlake,
+    # not whichever video or article happens to be the first card. Hermes can only turn
+    # previews off for every message it sends, so this keeps the choice to this plugin.
+    head = f"**[{heading}]({OPEN_LINK})**"
     if summary:
         head += f" · {summary}"
     parts = [head] + [panel(card, now) for card in shown[:FULL_CARDS]]

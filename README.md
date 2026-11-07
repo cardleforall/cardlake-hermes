@@ -37,7 +37,9 @@ Days follow your time zone: the `timezone` set in Hermes, otherwise your compute
 
 Each card is a quote block, which Telegram shows as a panel: its type, whether it's overdue or due today, a 📌 if it's pinned, the title in bold, and a short link when it has one. The 3 most urgent cards are shown in full (overdue, then due today, then pinned) and the rest get one line each, up to 8.
 
-Telegram adds a preview of the first link in a message, which can push a video preview under your feed. To turn previews off for Hermes, add this to `~/.hermes/config.yaml` and restart the gateway. It applies to all of Hermes' Telegram messages, not just Cardlake's:
+No boxes or ASCII art, which only line up in a terminal.
+
+Telegram previews the first link in a message, so the heading links to Cardlake: the preview under your feed is Cardlake's, not a video or article from one of your cards. To turn previews off altogether, add this to `~/.hermes/config.yaml` and restart the gateway. It applies to every Telegram message Hermes sends:
 
 ```yaml
 gateway:
@@ -45,7 +47,7 @@ gateway:
     telegram:
       extra:
         disable_link_previews: true
-``` No boxes or ASCII art, which only line up in a terminal.
+```
 
 The plugin also tells Hermes to show cards the same way in ordinary replies, such as "what's on my plate?". Models follow this most of the time, not always.
 
