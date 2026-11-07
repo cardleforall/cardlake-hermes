@@ -6,7 +6,8 @@ import json
 import logging
 from collections import OrderedDict
 
-from .commands import OPEN_LINK, TOOL_PREFIX, handle, today_message
+from .buttons import TelegramButtons
+from .commands import OPEN_LINK, TOOL_PREFIX, call_cardlake, handle, today_message
 from .feed_view import with_open_link
 
 logger = logging.getLogger(__name__)
@@ -110,8 +111,9 @@ def _optional(what: str, register_fn) -> None:
 
 
 def register(ctx) -> None:
+    buttons = TelegramButtons(ctx, lambda tool, args: call_cardlake(ctx, tool, args))
     ctx.register_command(
-        "cardlake", lambda raw_args: handle(ctx, raw_args),
+        "cardlake", lambda raw_args: handle(ctx, raw_args, buttons),
         description="See your Cardlake feed and what's due, save a card, or snooze one",
         args_hint="feed|today|save <text>|snooze <text>",
     )
@@ -127,6 +129,7 @@ def register(ctx) -> None:
         ctx.register_hook("post_tool_call", note_cardlake_use),
         ctx.register_hook("transform_llm_output", add_open_link),
     ))
+    _optional("Telegram buttons", lambda: ctx.register_telegram_handler(buttons.attach))
     _optional("the chat guide", lambda: ctx.register_system_prompt_section("cardlake", CHAT_GUIDE))
     if guarded:
         _optional("the morning message", lambda: _register_morning(ctx))

@@ -126,8 +126,15 @@ def _feed(ctx, limit: int) -> list[dict]:
     return [c for c in cards if isinstance(c, dict)]
 
 
+def feed_with_cards(ctx) -> tuple[str, list[dict]]:
+    """The feed message, and its cards in the order shown (for the buttons)."""
+    now = local_now()
+    cards = _feed(ctx, _FEED_SIZE)
+    return feed_view.render_feed(cards, now), feed_view.by_urgency(cards, now)
+
+
 def show_feed(ctx) -> str:
-    return feed_view.render_feed(_feed(ctx, _FEED_SIZE), local_now())
+    return feed_with_cards(ctx)[0]
 
 
 def today_message(ctx) -> Optional[str]:
@@ -135,8 +142,17 @@ def today_message(ctx) -> Optional[str]:
     return feed_view.render_today(_feed(ctx, _TODAY_SCAN), local_now())
 
 
+def today_with_cards(ctx) -> tuple[str, list[dict]]:
+    now = local_now()
+    cards = _feed(ctx, _TODAY_SCAN)
+    text = feed_view.render_today(cards, now)
+    if text is None:
+        return with_open_link("Nothing is overdue or due today."), []
+    return text, feed_view.today_cards(cards, now)
+
+
 def show_today(ctx) -> str:
-    return today_message(ctx) or with_open_link("Nothing is overdue or due today.")
+    return today_with_cards(ctx)[0]
 
 
 def _describe(card: dict) -> str:
@@ -192,14 +208,24 @@ def _choose(ctx, matches: list[dict]) -> Optional[dict]:
     return matches[int(picked)] if picked is not None else None
 
 
-def handle(ctx, raw_args: str) -> str:
+def _with_buttons(buttons, text: str, cards: list[dict]) -> str:
+    """Posts the message with Telegram buttons when it can; then Hermes has nothing left to send."""
+    try:
+        if buttons is not None and buttons.send(text, cards):
+            return ""
+    except Exception:
+        logger.warning("Cardlake: buttons failed, sending plain text", exc_info=True)
+    return text
+
+
+def handle(ctx, raw_args: str, buttons=None) -> str:
     verb, _, rest = (raw_args or "").strip().partition(" ")
     verb, rest = verb.lower(), rest.strip()
     try:
         if verb == "feed" and not rest:
-            return show_feed(ctx)
+            return _with_buttons(buttons, *feed_with_cards(ctx))
         if verb == "today" and not rest:
-            return show_today(ctx)
+            return _with_buttons(buttons, *today_with_cards(ctx))
         if verb == "save":
             return with_open_link(save(ctx, rest))
         if verb == "snooze":
