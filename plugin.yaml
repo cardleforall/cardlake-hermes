@@ -1,0 +1,15 @@
+name: cardlake
+label: Cardlake
+version: 0.1.0
+author: Cardlake
+license: AGPL-3.0-only
+homepage: https://github.com/cardleforall/cardlake-hermes
+description: >
+  Turn your Hermes conversations into Cardlake cards when you ask: /cardlake
+  today, yesterday or week add up to 3 cards, and /cardlake feed, save and
+  snooze work with your feed. Passwords, API keys and tokens are removed before
+  anything is sent. Also offers a morning briefing blueprint that never changes
+  cards. Needs a Cardlake account.
+provides_tools: []
+provides_hooks:
+  - pre_tool_call
