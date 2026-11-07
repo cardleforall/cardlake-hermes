@@ -86,6 +86,13 @@ class SplitTest(unittest.TestCase):
         self.assertIn("Bookmark 0", parts[3][0])
         self.assertIn("…and 3 more in Cardlake.", parts[3][0])
 
+    def test_every_parts_first_link_is_cardlake_so_telegram_previews_it_not_a_video(self):
+        video = {"id": "v", "type": "learning", "title": "A talk", "metadata": {"url": "https://www.youtube.com/watch?v=x"}}
+        parts = feed_view.split_feed([REMINDER, WORK, LEARNING, video] + MORE, NOW)
+        tail = parts[-1][0]
+        self.assertTrue(tail.startswith("**[More in your feed](https://cardlake.app/vault/)**"))
+        self.assertLess(tail.index("cardlake.app"), tail.index("youtube.com"))
+
     def test_no_part_carries_the_link_line(self):
         for text, _ in feed_view.split_feed([REMINDER] + MORE, NOW):
             self.assertNotIn("Open Cardlake:", text)

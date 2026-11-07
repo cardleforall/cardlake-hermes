@@ -149,7 +149,8 @@ def _head(heading: str, summary: str) -> str:
     return f"{head} · {summary}" if summary else head
 
 
-def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "") -> list[tuple[str, Optional[dict]]]:
+def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "",
+          lead: str = "") -> list[tuple[str, Optional[dict]]]:
     """The message in parts, for Telegram buttons: (text, the card it shows) for each card shown in
     full, the heading riding on the first, then (text, None) for the rest. No link line: in
     Telegram that's a button."""
@@ -168,6 +169,10 @@ def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hin
         tail.append(f"*{hint}*")
     if not parts:
         tail.insert(0, head)
+    elif tail and lead:
+        # Its own message, so its first link is the one Telegram previews: make that Cardlake too,
+        # not a video from the list.
+        tail.insert(0, f"**[{lead}]({OPEN_LINK})**")
     if tail:
         parts.append(("\n\n".join(tail), None))
     return parts
@@ -191,6 +196,9 @@ def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
     return sorted(cards, key=rank)
 
 
+_TAIL_LEAD = "More in your feed"
+
+
 def _feed_args(cards: list[dict], now: datetime) -> tuple:
     overdue = sum(is_overdue(c, now) for c in cards)
     summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue else "")
@@ -204,7 +212,7 @@ def render_feed(cards: list[dict], now: datetime) -> str:
 
 
 def split_feed(cards: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
-    return split(*_feed_args(cards, now)) if cards else []
+    return split(*_feed_args(cards, now), lead=_TAIL_LEAD) if cards else []
 
 
 def today_cards(cards: list[dict], now: datetime) -> list[dict]:
@@ -235,4 +243,4 @@ def render_today(cards: list[dict], now: datetime) -> Optional[str]:
 def split_today(cards: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
     """With buttons under each card, the reply-to-update hint isn't needed."""
     args = _today_args(cards, now)
-    return split(*args) if args else []
+    return split(*args, lead=_TAIL_LEAD) if args else []
