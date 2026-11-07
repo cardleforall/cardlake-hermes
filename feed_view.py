@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import re
 from datetime import date, datetime, timezone
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
@@ -113,11 +113,28 @@ def _link(card: dict) -> str:
     return f"[{host}]({url})" if host else ""
 
 
+def back(card: dict, now: datetime) -> str:
+    """When a snoozed card comes back: 'back tomorrow', 'back 14 Nov', or ''."""
+    raw = str(card.get("snoozed_until") or "")
+    try:
+        until = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    day = until.astimezone(now.tzinfo).date()
+    if day <= now.date():
+        return "⏰ back today"
+    if (day - now.date()).days == 1:
+        return "⏰ back tomorrow"
+    return f"⏰ back {day.day} {day:%b}"
+
+
 def panel(card: dict, now: datetime) -> str:
     emoji, label = kind(card)
     top = f"{emoji} **{label}**"
     # A bare pin, not "📌 pinned": on a phone the longer status line wraps.
-    extras = [x for x in (status(card, now), "📌" if card.get("pinned_at") else "") if x]
+    extras = [x for x in (status(card, now), back(card, now), "📌" if card.get("pinned_at") else "") if x]
     if extras:
         top += " · " + " · ".join(extras)
     lines = [f"> {top}", f"> **{plain(card.get('title')) or 'Untitled'}**"]
@@ -130,8 +147,9 @@ def panel(card: dict, now: datetime) -> str:
 def line(card: dict, now: datetime) -> str:
     emoji, _ = kind(card)
     parts = [f"{emoji} {plain(card.get('title')) or 'Untitled'}"]
-    if status(card, now):
-        parts.append(status(card, now))
+    for extra in (status(card, now), back(card, now)):
+        if extra:
+            parts.append(extra)
     if _link(card):
         parts.append(_link(card))
     return "- " + " · ".join(parts)
@@ -200,20 +218,62 @@ def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
 _TAIL_LEAD = "More in your feed"
 
 
-def _feed_args(cards: list[dict], now: datetime) -> tuple:
+class FeedFilter(NamedTuple):
+    """One view of the feed: what to ask Cardlake for and how to title it."""
+    words: tuple
+    args: dict  # list_feed arguments
+    heading: str
+    noun: str  # "learnings", as in "3 learnings"
+    snoozed: bool = False
+
+
+FILTERS = (
+    FeedFilter(("reminders", "reminder"), {"types": ["reminder"]}, "🔔 Your reminders", "reminder"),
+    FeedFilter(("learning", "learnings"), {"types": ["learning"]}, "📚 Your learnings", "learning"),
+    FeedFilter(("work", "work items", "work item"), {"types": ["work"]}, "💼 Your work items", "work item"),
+    FeedFilter(("family",), {"types": ["family"]}, "👪 Family", "family card"),
+    FeedFilter(("bookmarks", "bookmark"), {"types": ["bookmark"]}, "🔖 Your bookmarks", "bookmark"),
+    FeedFilter(("misc",), {"types": ["talking_point"]}, "💬 Your Misc cards", "Misc card"),
+    FeedFilter(("github", "github issues", "issues", "issue"), {"types": ["kanban"]}, "🗂 Your GitHub issues",
+               "GitHub issue"),
+    FeedFilter(("files", "file"), {"types": ["file"]}, "📎 Your files", "file"),
+    FeedFilter(("favorites", "favourites", "favorite", "favourite", "liked"), {"liked_only": True},
+               "♥ Your favorites", "favorite"),
+    FeedFilter(("snoozed",), {"view": "snoozed"}, "⏰ Snoozed", "snoozed card", snoozed=True),
+)
+FILTER_NAMES = ", ".join(f.words[0] for f in FILTERS)
+
+
+def find_filter(word: str) -> Optional[FeedFilter]:
+    word = " ".join(word.lower().split())
+    return next((f for f in FILTERS if word in f.words), None)
+
+
+def _feed_args(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> tuple:
     overdue = sum(is_overdue(c, now) for c in cards)
-    summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue else "")
-    return by_urgency(cards, now), now, "🗂 Your Cardlake feed", summary
+    summary = _count(len(cards), flt.noun if flt else "card") + (f", {overdue} overdue" if overdue and not (flt and flt.snoozed) else "")
+    if flt and flt.snoozed:
+        # Cardlake already lists these by when they come back. Marked, so their buttons bring them back.
+        return [dict(c, _snoozed=True) for c in cards], now, flt.heading, summary
+    return by_urgency(cards, now), now, flt.heading if flt else "🗂 Your Cardlake feed", summary
 
 
-def render_feed(cards: list[dict], now: datetime) -> str:
+def _empty(flt: Optional[FeedFilter]) -> str:
+    if flt is None:
+        return "Your Cardlake feed is empty."
+    if flt.snoozed:
+        return "Nothing is snoozed."
+    return f"No {flt.noun}s in your feed."
+
+
+def render_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> str:
     if not cards:
-        return with_open_link("Your Cardlake feed is empty.")
-    return render(*_feed_args(cards, now))
+        return with_open_link(_empty(flt))
+    return render(*_feed_args(cards, now, flt))
 
 
-def split_feed(cards: list[dict], now: datetime) -> list[tuple[str, Optional[dict]]]:
-    return split(*_feed_args(cards, now), lead=_TAIL_LEAD) if cards else []
+def split_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> list[tuple[str, Optional[dict]]]:
+    return split(*_feed_args(cards, now, flt), lead=_TAIL_LEAD) if cards else []
 
 
 def today_cards(cards: list[dict], now: datetime) -> list[dict]:

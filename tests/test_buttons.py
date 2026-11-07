@@ -387,6 +387,72 @@ class MorningWithoutButtonsTest(unittest.TestCase):
         self.assertEqual(h.bot.sent, {})
 
 
+SNOOZED = dict(PINNED, pinned_at=None, snoozed_until="2026-11-14T04:30:00.000Z")
+
+
+class FilterTest(unittest.TestCase):
+    def test_every_word_the_help_names_is_a_filter(self):
+        for word in ("reminders", "learning", "work", "family", "bookmarks", "misc", "github", "files",
+                     "favorites", "snoozed"):
+            self.assertIn(word, commands.USAGE)
+            self.assertIsNotNone(feed_view.find_filter(word), word)
+
+    def test_singulars_plurals_and_the_apps_own_names_work(self):
+        for word, kind in (("Learnings", "learning"), ("reminder", "reminder"), ("GitHub issues", "kanban"),
+                           ("Misc", "talking_point"), ("work items", "work"), ("favourites", None)):
+            self.assertEqual(feed_view.find_filter(word).args.get("types", [None])[0], kind, word)
+
+    def test_each_filter_asks_cardlake_for_just_that(self):
+        for word, args in (("family", {"types": ["family"]}), ("favorites", {"liked_only": True}),
+                           ("snoozed", {"view": "snoozed"})):
+            ctx = FakeCtx(feed=[WORK])
+            commands.handle(ctx, f"feed {word}")
+            self.assertEqual(ctx.calls[-1], ("mcp__cardlake__list_feed", {"limit": 20, **args}))
+
+    def test_the_heading_and_count_name_the_filter(self):
+        text = commands.handle(FakeCtx(feed=[LEARNING, dict(LEARNING, id="l2")]), "feed learning")
+        self.assertIn("📚 Your learnings", text)
+        self.assertIn("2 learnings", text)
+        self.assertIn("1 family card", feed_view.render_feed([WORK], NOW, feed_view.find_filter("family")))
+
+    def test_an_empty_filter_says_so(self):
+        self.assertIn("No family cards in your feed.", commands.handle(FakeCtx(feed=[]), "feed family"))
+        self.assertIn("Nothing is snoozed.", commands.handle(FakeCtx(feed=[]), "feed snoozed"))
+
+    def test_an_unknown_filter_lists_the_real_ones_and_asks_cardlake_nothing(self):
+        ctx = FakeCtx(feed=[WORK])
+        reply = commands.handle(ctx, "feed cats")
+        self.assertIn('There\'s no "cats" filter', reply)
+        self.assertIn("learning", reply)
+        self.assertEqual(ctx.calls, [])
+
+    def test_snoozed_cards_say_when_they_come_back(self):
+        self.assertIn("⏰ back 14 Nov", feed_view.panel(SNOOZED, NOW))
+        self.assertIn("⏰ back tomorrow", feed_view.panel(dict(SNOOZED, snoozed_until="2026-11-08T03:00:00Z"), NOW))
+
+
+class SnoozedWithButtonsTest(HarnessTest):
+    feed = [SNOOZED]
+
+    def setUp(self):
+        super().setUp()
+        self.h.run("feed snoozed")
+
+    def test_snoozed_cards_only_offer_bring_back(self):
+        self.assertEqual(self.h.keyboard(1), [["↩ Bring back"], ["🔗 Open Cardlake"]])
+        for code in ("d", "t", "w"):
+            self.assertIn("doesn't apply", self.h.tap(1, f"clk:{code}"))
+        self.assertEqual(self.h.ctx.written(), [])
+
+    def test_bring_back_unsnoozes_and_undo_snoozes_it_again_until_its_day(self):
+        self.assertEqual(self.h.tap(1, "clk:b"), "Back in your feed: Send the pilot proposal")
+        self.assertEqual(self.h.ctx.written(), [("unsnooze_card", {"card_type": "reminder", "card_id": "p1"})])
+        self.h.tap(1, "clk:u")
+        tool, args = self.h.ctx.written()[-1]
+        self.assertEqual((tool, args["card_id"]), ("snooze_card", "p1"))
+        self.assertGreaterEqual(args["days"], 1)
+
+
 class WhenButtonsAreLeftOutTest(unittest.TestCase):
     def run_feed(self, env=TELEGRAM_DM, attached=True, bot=None, feed=(REMINDER, WORK)):
         h = Harness(feed, env, attached, bot)

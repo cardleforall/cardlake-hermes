@@ -19,6 +19,7 @@ CONNECT_COMMAND = "hermes mcp add cardlake --url https://cardlake.app/api/mcp --
 USAGE = (
     "Usage:\n"
     "/cardlake feed: show your feed\n"
+    "/cardlake feed <filter>: just one kind: reminders, learning, work, family, bookmarks, misc, github, files, favorites or snoozed\n"
     "/cardlake today: what's overdue or due today\n"
     "/cardlake deal: five cards to look at again\n"
     "/cardlake save <text>: save text as a card\n"
@@ -122,8 +123,8 @@ def _ask_model(ctx, instructions: str, prompt: str, schema: dict, purpose: str) 
     return _json_from_text(result.text)
 
 
-def _feed(ctx, limit: int) -> list[dict]:
-    feed = call_cardlake(ctx, "list_feed", {"limit": limit})
+def _feed(ctx, limit: int, **filters) -> list[dict]:
+    feed = call_cardlake(ctx, "list_feed", {"limit": limit, **filters})
     cards = feed.get("cards", []) if isinstance(feed, dict) else []
     return [c for c in cards if isinstance(c, dict)]
 
@@ -136,10 +137,14 @@ class Reply(NamedTuple):
     today: Optional[tuple] = None
 
 
-def feed_reply(ctx) -> Reply:
+def feed_reply(ctx, flt: Optional[feed_view.FeedFilter] = None) -> Reply:
     now = local_now()
-    cards = _feed(ctx, _FEED_SIZE)
-    return Reply(feed_view.render_feed(cards, now), feed_view.split_feed(cards, now))
+    cards = _feed(ctx, _FEED_SIZE, **(flt.args if flt else {}))
+    return Reply(feed_view.render_feed(cards, now, flt), feed_view.split_feed(cards, now, flt))
+
+
+def unknown_filter(word: str) -> str:
+    return f'There\'s no "{redact_text(word)[:40]}" filter. Try one of: {feed_view.FILTER_NAMES}.'
 
 
 def show_feed(ctx) -> str:
@@ -242,8 +247,11 @@ def handle(ctx, raw_args: str, buttons=None) -> str:
     verb, _, rest = (raw_args or "").strip().partition(" ")
     verb, rest = verb.lower(), rest.strip()
     try:
-        if verb == "feed" and not rest:
-            return _reply(buttons, feed_reply(ctx))
+        if verb == "feed":
+            flt = feed_view.find_filter(rest) if rest else None
+            if rest and flt is None:
+                return unknown_filter(rest)
+            return _reply(buttons, feed_reply(ctx, flt))
         if verb == "today" and not rest:
             reply = today_reply(ctx)
             return _reply(buttons, reply) if reply else with_open_link("Nothing is overdue or due today.")

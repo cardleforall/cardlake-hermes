@@ -120,7 +120,7 @@ def register(ctx) -> None:
     ctx.register_command(
         "cardlake", lambda raw_args: handle(ctx, raw_args, buttons),
         description="See your Cardlake feed and what's due, get five cards to look at again, save a card, or snooze one",
-        args_hint="feed|today|deal|save <text>|snooze <text>",
+        args_hint="feed [filter]|today|deal|save <text>|snooze <text>",
     )
     # The guard comes before the morning job that it protects, and the job is skipped if the guard is.
     try:

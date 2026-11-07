@@ -27,6 +27,7 @@ This is a separate step because a Hermes plugin with commands can't carry a sign
 | Command | What it does |
 | --- | --- |
 | `/cardlake feed` | Shows the top of your feed as cards |
+| `/cardlake feed <filter>` | Shows just one kind: `reminders`, `learning`, `work`, `family`, `bookmarks`, `misc`, `github`, `files`, `favorites` (cards you've hearted) or `snoozed` (with a Bring back button, and when each card comes back) |
 | `/cardlake today` | Shows reminders that are overdue or due today |
 | `/cardlake deal` | Deals you five cards to look at again, like the app's Deal me 5: none that are overdue, due today or pinned |
 | `/cardlake save <text>` | Saves your text as a card; your model picks the kind |

@@ -49,6 +49,18 @@ def _due_value(card: dict) -> Optional[str]:
     return due.isoformat()
 
 
+def _days_left(card: dict) -> int:
+    """Whole days until a snoozed card was due back (at least 1), to snooze it again on Undo."""
+    try:
+        until = datetime.fromisoformat(str(card.get("snoozed_until") or "").replace("Z", "+00:00"))
+    except ValueError:
+        return 1
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    seconds = (until - datetime.now(timezone.utc)).total_seconds()
+    return min(365, max(1, -int(-seconds // 86400)))  # rounded up
+
+
 def _keep_pin(card: dict) -> list[Call]:
     """Snoozing or finishing a card unpins it in Cardlake, so Undo pins it again."""
     ref = {"card_type": card["type"], "card_id": card["id"]}
@@ -60,6 +72,11 @@ def action_for(card: dict, code: str) -> Optional[tuple[Call, str, list[Call]]]:
     if not card.get("id") or not card.get("type"):
         return None
     ref = {"card_type": card["type"], "card_id": card["id"]}
+    if card.get("_snoozed"):
+        # In the snoozed list the only button is Bring back; Undo snoozes it again until its day.
+        if code != "b":
+            return None
+        return ("unsnooze_card", ref), "Back in your feed", [("snooze_card", {**ref, "days": _days_left(card)})]
     if code in ("t", "w"):
         days = 1 if code == "t" else 7
         said = "Snoozed until tomorrow" if days == 1 else "Snoozed for a week"
@@ -95,6 +112,8 @@ def keyboard_rows(card: Optional[dict], result: Optional[str] = None, last: bool
         if result:
             rows.append([{"text": f"✓ {result}", "callback_data": f"{PREFIX}n"},
                          {"text": "↩ Undo", "callback_data": f"{PREFIX}u"}])
+        elif card.get("_snoozed"):
+            rows.append([{"text": "↩ Bring back", "callback_data": f"{PREFIX}b"}])
         else:
             row = [{"text": "✅ Done", "callback_data": f"{PREFIX}d"}] if has_done(card) else []
             row += [{"text": "⏰ Tomorrow", "callback_data": f"{PREFIX}t"},
