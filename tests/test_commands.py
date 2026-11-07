@@ -397,9 +397,11 @@ class OlderHermesTest(unittest.TestCase):
 
     def test_morning_job_is_skipped_when_its_guard_cannot_be_added(self):
         ctx = self.OldCtx(hooks=False)
-        ctx.register_tool = ctx.register_automation_blueprint = unittest.mock.Mock()
+        ctx.register_tool, ctx.register_automation_blueprint = unittest.mock.Mock(), unittest.mock.Mock()
         plugin.register(ctx)
-        ctx.register_tool.assert_not_called()
+        registered = [call.kwargs.get("name") for call in ctx.register_tool.call_args_list]
+        self.assertNotIn(plugin.TODAY_TOOL, registered)
+        self.assertIn("cardlake_show_cards", registered)  # unrelated to the morning job, so it stays
         ctx.register_automation_blueprint.assert_not_called()
 
 

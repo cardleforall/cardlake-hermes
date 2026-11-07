@@ -6,6 +6,7 @@ import json
 import logging
 from collections import OrderedDict
 
+from . import show
 from .buttons import TelegramCards
 from .commands import OPEN_LINK, TOOL_PREFIX, call_cardlake, handle, send_with_buttons, today_reply
 from .feed_view import with_open_link
@@ -33,7 +34,9 @@ Use 🔔 Reminder, 📚 Learning, 💼 Work item, 👪 Family, 🔖 Bookmark, �
 
 When the user answers a Cardlake card or names one with "done", "tomorrow", "next week" or "snooze", find it with search_cards and update it: done marks a reminder completed or a learning watched, tomorrow and snooze snooze it for 1 day, next week for 7. If more than one card matches, ask which. Then confirm in one line.
 
-When the user forwards a link or message, or sends a voice note, and asks for nothing else, save it to Cardlake as one card: a link to an article, video or course as a learning, any other link as a bookmark, something with a date as a reminder, anything else as a Misc card. Then say in one line what you saved. Never delete a card unless the user asks."""
+When the user forwards a link or message, or sends a voice note, and asks for nothing else, save it to Cardlake as one card: a link to an article, video or course as a learning, any other link as a bookmark, something with a date as a reminder, anything else as a Misc card. Then say in one line what you saved. Never delete a card unless the user asks.
+
+When your answer is a set of separate items, such as links or videos you found, findings, options, tasks or a scheduled job's results, show them with the {show.SHOW_TOOL} tool instead of writing them out: the user gets each as a card they can save to Cardlake. Ordinary conversation stays as text."""
 
 # Reading is harmless. Anything else, including tools Cardlake adds later, counts as a change.
 _READ_ONLY_TOOLS = frozenset(
@@ -135,6 +138,11 @@ def register(ctx) -> None:
         ctx.register_hook("transform_llm_output", add_open_link),
     ))
     _optional("Telegram buttons", lambda: ctx.register_telegram_handler(buttons.attach))
+    _optional("the show-cards tool", lambda: ctx.register_tool(
+        name=show.SHOW_TOOL, toolset="cardlake", schema=show.SHOW_SCHEMA,
+        handler=lambda args, **kwargs: show.show_tool(buttons, args),
+        description=show.SHOW_SCHEMA["description"], emoji="🃏",
+    ))
     _optional("the chat guide", lambda: ctx.register_system_prompt_section("cardlake", CHAT_GUIDE))
     if guarded:
         _optional("the morning message", lambda: _register_morning(ctx, buttons))

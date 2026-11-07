@@ -61,6 +61,12 @@ gateway:
 
 The plugin also tells Hermes to show cards the same way in ordinary replies, such as "what's on my plate?". Models follow this most of the time, not always.
 
+## Hermes' own results as cards
+
+Hermes can show its own results as cards too: links and videos it found, research findings, options, tasks, or a scheduled job's report. It does this with the `cardlake_show_cards` tool, which the plugin adds and tells Hermes about. In your private Telegram chat each item arrives as a card with **💾 Save to Cardlake** and **⏰ Remind me** (a reminder for tomorrow), both with Undo. Nothing is saved unless you tap. Elsewhere, Hermes gets the same cards back as text for its reply.
+
+Whether Hermes uses the tool is up to your model. To be sure, ask for it: "show these as cards".
+
 ## In chat
 
 - **Reply to update.** Say "done", "tomorrow" or "next week" with a card's name, or in reply to a card, and Hermes updates it. If more than one card matches, it asks which.

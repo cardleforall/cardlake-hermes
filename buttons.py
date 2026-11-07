@@ -18,7 +18,7 @@ from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-from . import feed_view
+from . import feed_view, show
 from .feed_view import OPEN_LINK, plain
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,7 @@ _MAX_MESSAGES = 300  # older messages' buttons say they're out of date
 _PINNED_KEY = "pinned_today"  # chat id -> message id of the Today checklist the plugin pinned
 
 Call = tuple[str, dict]
+CREATED = "$created"  # in an Undo step: the id of the card the tap created
 
 
 # What the buttons do ------------------------------------------------------------------------------
@@ -72,6 +73,16 @@ def action_for(card: dict, code: str) -> Optional[tuple[Call, str, list[Call]]]:
     """(the change, what the user is told, how to undo it), or None when the button doesn't apply."""
     if not card.get("id") or not card.get("type"):
         return None
+    if card.get("_shown"):
+        # Something Hermes showed, not yet in Cardlake: save it, or make it tomorrow's reminder.
+        # Undo deletes what the tap created ("$created" is filled in with its id).
+        if code == "s":
+            create, args, delete, saved_as = show.save_call(card)
+            return (create, args), f"Saved as {saved_as}", [(delete, {"id": CREATED})]
+        if code == "r":
+            create, args = show.remind_call(card)
+            return (create, args), "Reminder for tomorrow", [("delete_reminder", {"id": CREATED})]
+        return None
     ref = {"card_type": card["type"], "card_id": card["id"]}
     if card.get("_snoozed"):
         # In the snoozed list the only button is Bring back; Undo snoozes it again until its day.
@@ -98,6 +109,16 @@ def action_for(card: dict, code: str) -> Optional[tuple[Call, str, list[Call]]]:
     return None
 
 
+def _fill_created(undo: list[Call], result: Any) -> list[Call]:
+    """Put the new card's id into the Undo steps; with no id there's nothing safe to undo."""
+    if not any(CREATED in args.values() for _, args in undo):
+        return undo
+    new_id = show.created_id(result)
+    if not new_id:
+        return []
+    return [(tool, {k: (new_id if v == CREATED else v) for k, v in args.items()}) for tool, args in undo]
+
+
 def has_done(card: dict) -> bool:
     return action_for(card, "d") is not None
 
@@ -105,14 +126,20 @@ def has_done(card: dict) -> bool:
 _OPEN_ROW = [{"text": "🔗 Open Cardlake", "url": OPEN_LINK}]
 
 
-def keyboard_rows(card: Optional[dict], result: Optional[str] = None, last: bool = False) -> list[list[dict]]:
+def keyboard_rows(card: Optional[dict], result: Optional[str] = None, last: bool = False,
+                  can_undo: bool = True) -> list[list[dict]]:
     """Rows of {"text", "callback_data" | "url"} for one message: the card's actions, or once one was
     used, what happened and Undo; on the last message, the link to Cardlake."""
     rows = []
     if card is not None and card.get("id") and card.get("type"):
         if result:
-            rows.append([{"text": f"✓ {result}", "callback_data": f"{PREFIX}n"},
-                         {"text": "↩ Undo", "callback_data": f"{PREFIX}u"}])
+            row = [{"text": f"✓ {result}", "callback_data": f"{PREFIX}n"}]
+            if can_undo:
+                row.append({"text": "↩ Undo", "callback_data": f"{PREFIX}u"})
+            rows.append(row)
+        elif card.get("_shown"):
+            rows.append([{"text": "💾 Save to Cardlake", "callback_data": f"{PREFIX}s"},
+                         {"text": "⏰ Remind me", "callback_data": f"{PREFIX}r"}])
         elif card.get("_snoozed"):
             rows.append([{"text": "↩ Bring back", "callback_data": f"{PREFIX}b"}])
         else:
@@ -168,9 +195,14 @@ class TelegramCards:
 
     def attach(self, native, adapter=None) -> None:
         """Hermes calls this when Telegram connects, with python-telegram-bot's Application."""
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions, WebAppInfo
         from telegram.ext import CallbackQueryHandler
-        self.markup = lambda rows: InlineKeyboardMarkup([[InlineKeyboardButton(**b) for b in row] for row in rows])
+        def button(spec: dict):
+            spec = dict(spec)
+            if "web_app" in spec:  # opens the page inside Telegram
+                spec["web_app"] = WebAppInfo(url=spec["web_app"])
+            return InlineKeyboardButton(**spec)
+        self.markup = lambda rows: InlineKeyboardMarkup([[button(b) for b in row] for row in rows])
         self.preview = lambda url: (LinkPreviewOptions(url=url, prefer_large_media=True) if url
                                     else LinkPreviewOptions(is_disabled=True))
         self.format = getattr(adapter, "format_message", None)
@@ -213,6 +245,20 @@ class TelegramCards:
             return future.result(_SEND_TIMEOUT_SECONDS)
         except Exception:
             logger.warning("Cardlake: sending cards to Telegram failed", exc_info=True)
+            return False
+
+    def send_app(self) -> bool:
+        """A button that opens Cardlake inside Telegram, instead of in the browser."""
+        chat = self.chat()
+        if chat is None:
+            return False
+        text = "**Your Cardlake feed, inside Telegram**\nOpens Cardlake here, without leaving the chat."
+        rows = [[{"text": "📱 Open Cardlake here", "web_app": OPEN_LINK}]]
+        try:
+            asyncio.run_coroutine_threadsafe(self._post(chat, text, rows), self.loop).result(_SEND_TIMEOUT_SECONDS)
+            return True
+        except Exception:
+            logger.warning("Cardlake: couldn't send the open-in-Telegram button", exc_info=True)
             return False
 
     async def _send(self, chat: str, parts, today) -> bool:
@@ -305,7 +351,7 @@ class TelegramCards:
 
     async def _set_keyboard(self, key: tuple[str, str]) -> None:
         state = self.messages[key]
-        rows = keyboard_rows(state["card"], state["result"], state["last"])
+        rows = keyboard_rows(state["card"], state["result"], state["last"], bool(state["undo"]))
         await self.bot.edit_message_reply_markup(
             chat_id=int(key[0]), message_id=int(key[1]), reply_markup=self.markup(rows) if rows else None)
 
@@ -356,11 +402,11 @@ class TelegramCards:
             return "That button doesn't apply to this card."
         (tool, args), said, undo = action
         try:
-            await asyncio.to_thread(self.run_tool, tool, args)
+            result = await asyncio.to_thread(self.run_tool, tool, args)
         except Exception as exc:
             logger.warning("Cardlake: button %s failed", tool, exc_info=True)
             return f"Couldn't update Cardlake: {exc}"[:190]
-        state["result"], state["undo"] = said, undo
+        state["result"], state["undo"] = said, _fill_created(undo, result)
         await self._after_change(key, state)
         return f"{said}: {title}"[:190]
 

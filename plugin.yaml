@@ -1,6 +1,6 @@
 name: cardlake
 label: Cardlake
-version: 0.5.0
+version: 0.6.0
 author: Cardlake
 license: AGPL-3.0-only
 homepage: https://github.com/cardleforall/cardlake-hermes
@@ -11,6 +11,7 @@ description: >
   tokens are removed before anything is sent. Needs a Cardlake account.
 provides_tools:
   - cardlake_today
+  - cardlake_show_cards
 provides_hooks:
   - pre_tool_call
   - post_tool_call
