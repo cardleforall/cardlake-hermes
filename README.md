@@ -43,6 +43,10 @@ Days follow your time zone: the `timezone` set in Hermes, otherwise your compute
 | Something learned | Learning |
 | Decision or open question | Misc |
 
+## Link to your feed
+
+Cardlake is made to be seen, and a chat reply is text. So every `/cardlake` reply, and any Hermes reply in which Hermes used a Cardlake tool, ends with a link to open your feed: `Open Cardlake: https://cardlake.app/vault/`. Other replies are left alone.
+
 ## Morning briefing
 
 Run `/blueprint`, pick **Cardlake morning briefing**, and choose a time. Each morning it sends a recap of yesterday to your Telegram home channel and offers `/cardlake yesterday`. A day with nothing useful sends no message.

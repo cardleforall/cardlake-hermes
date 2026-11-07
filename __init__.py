@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from .commands import TOOL_PREFIX, handle
+from collections import OrderedDict
+
+from .commands import OPEN_LINK, TOOL_PREFIX, handle, with_open_link
 
 # Blueprint text goes through str.format, so it holds no literal braces.
 BRIEFING_PROMPT = (
@@ -42,7 +44,36 @@ def block_briefing_changes(ctx, tool_name: str = "", **_kwargs):
     return _BLOCK if run is not None and run.job_name == BRIEFING_TITLE else None
 
 
+# Conversations whose next reply follows a Cardlake tool call, so only those replies get the link.
+# Keyed by conversation, not turn: the reply hook's turn id isn't promised to match the tool hook's.
+# Bounded, because a turn that never produces a reply (an interrupt) is never removed.
+_TURNS_USING_CARDLAKE: "OrderedDict[str, None]" = OrderedDict()
+_MAX_TRACKED_TURNS = 200
+
+
+def _turn_key(session_id: str = "", **_kwargs) -> str:
+    return session_id or ""
+
+
+def note_cardlake_use(tool_name: str = "", **kwargs) -> None:
+    if not tool_name.startswith(TOOL_PREFIX):
+        return
+    _TURNS_USING_CARDLAKE[_turn_key(**kwargs)] = None
+    while len(_TURNS_USING_CARDLAKE) > _MAX_TRACKED_TURNS:
+        _TURNS_USING_CARDLAKE.popitem(last=False)
+
+
+def add_open_link(response_text: str = "", **kwargs):
+    """Cardlake is visual and a chat reply isn't, so a reply about cards ends with the way to see them.
+    Append-only, so a streamed reply just gains a last line."""
+    if _TURNS_USING_CARDLAKE.pop(_turn_key(**kwargs), "missing") == "missing":
+        return None
+    return with_open_link(response_text) if OPEN_LINK not in response_text else None
+
+
 def register(ctx) -> None:
+    ctx.register_hook("post_tool_call", note_cardlake_use)
+    ctx.register_hook("transform_llm_output", add_open_link)
     ctx.register_command(
         "cardlake", lambda raw_args: handle(ctx, raw_args),
         description="Add cards from your conversations, or see, save and snooze cards",

@@ -303,6 +303,41 @@ class BriefingGuardTest(unittest.TestCase):
         self.assertIsNone(self.guard("terminal", plugin.BRIEFING_TITLE))
 
 
+class OpenLinkTest(unittest.TestCase):
+    LINK = "Open Cardlake: https://cardlake.app/vault/"
+    TURN = {"session_id": "s1", "turn_id": "t1"}
+
+    def test_command_replies_end_with_the_link(self):
+        for args in ("feed", "today"):
+            with self.subTest(args):
+                ctx = FakeCtx(llm_answer=picked())
+                self.assertTrue(run(ctx, args, [CHAT]).endswith(self.LINK))
+
+    def test_usage_and_not_connected_have_no_link(self):
+        self.assertNotIn(self.LINK, run(FakeCtx(), "banana"))
+        self.assertNotIn(self.LINK, run(FakeCtx(connected=False), "feed"))
+
+    def test_chat_reply_that_used_cardlake_gets_the_link_once(self):
+        plugin.note_cardlake_use(tool_name=commands.TOOL_PREFIX + "list_feed", **self.TURN)
+        reply = plugin.add_open_link("You have 3 reminders.", platform="telegram", **self.TURN)
+        self.assertEqual(reply, "You have 3 reminders.\n\n" + self.LINK)
+        self.assertIsNone(plugin.add_open_link("Next reply", **self.TURN))
+
+    def test_chat_reply_without_cardlake_is_untouched(self):
+        plugin.note_cardlake_use(tool_name="web_search", **self.TURN)
+        self.assertIsNone(plugin.add_open_link("The weather is fine.", **self.TURN))
+
+    def test_link_is_not_added_twice(self):
+        plugin.note_cardlake_use(tool_name=commands.TOOL_PREFIX + "create_reminder", **self.TURN)
+        self.assertIsNone(plugin.add_open_link("Done. https://cardlake.app/vault/", **self.TURN))
+
+    def test_remembered_turns_stay_bounded(self):
+        for n in range(plugin._MAX_TRACKED_TURNS + 50):
+            plugin.note_cardlake_use(tool_name=commands.TOOL_PREFIX + "list_feed", session_id=str(n))
+        self.assertEqual(len(plugin._TURNS_USING_CARDLAKE), plugin._MAX_TRACKED_TURNS)
+        plugin._TURNS_USING_CARDLAKE.clear()
+
+
 class BriefingBlueprintTest(unittest.TestCase):
     def test_prompt_rules(self):
         prompt = plugin.BRIEFING_PROMPT

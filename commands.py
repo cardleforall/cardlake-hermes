@@ -26,6 +26,13 @@ NOT_CONNECTED = (
     "Cardlake isn't connected, so nothing changed. Run this in a terminal, sign in, then start a new session:\n"
     f"{CONNECT_COMMAND}"
 )
+OPEN_LINK = "https://cardlake.app/vault/"
+
+
+def with_open_link(text: str) -> str:
+    return f"{text.rstrip()}\n\nOpen Cardlake: {OPEN_LINK}"
+
+
 _PERIOD_LABELS = {"today": "today's", "yesterday": "yesterday's", "week": "the past week's"}
 _TYPE_LABELS = {
     "reminder": "Reminder", "learning": "Learning", "kanban": "GitHub issue", "work": "Work item",
@@ -258,13 +265,13 @@ def handle(ctx, raw_args: str) -> str:
     verb, rest = verb.lower(), rest.strip()
     try:
         if verb in _PERIOD_LABELS and not rest:
-            return add_from_period(ctx, verb)
+            return with_open_link(add_from_period(ctx, verb))
         if verb == "feed" and not rest:
-            return show_feed(ctx)
+            return with_open_link(show_feed(ctx))
         if verb == "save":
-            return save(ctx, rest)
+            return with_open_link(save(ctx, rest))
         if verb == "snooze":
-            return snooze(ctx, rest)
+            return with_open_link(snooze(ctx, rest))
     except CardlakeError as exc:
         return str(exc)
     except Exception:
