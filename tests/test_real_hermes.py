@@ -66,6 +66,21 @@ class RealHermesTest(unittest.TestCase):
             finally:
                 exit_cron_execution(token)
 
+    def test_cardlakes_own_tools_stay_visible_next_to_the_plugins(self):
+        """The model sees Cardlake's MCP tools through the "cardlake" connection, and the plugin's
+        tools through its own toolset; one must not hide the other."""
+        from tools.registry import registry
+        from toolsets import resolve_toolset
+        schema = {"name": "mcp__cardlake__create_learning", "description": "Save a learning.",
+                  "parameters": {"type": "object", "properties": {}}}
+        registry.register(name=schema["name"], toolset="mcp-cardlake", schema=schema, handler=lambda args, **kw: "{}")
+        registry.register_toolset_alias("cardlake", "mcp-cardlake")
+        self.addCleanup(registry.deregister, schema["name"])
+        self._manager()
+        self.assertIn(schema["name"], resolve_toolset("cardlake"))
+        self.assertIn(load().TODAY_TOOL, resolve_toolset(load().TOOLSET))
+        self.assertNotIn(load().TODAY_TOOL, resolve_toolset("cardlake"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -412,6 +412,17 @@ class OlderHermesTest(unittest.TestCase):
         ctx.register_automation_blueprint.assert_not_called()
 
 
+    def test_plugin_tools_dont_take_the_connections_name(self):
+        # Seen live: with the plugin's tools in a toolset called "cardlake", Hermes resolved the
+        # "cardlake" connection to the plugin's 2 tools and the model never saw Cardlake's 35.
+        ctx = self.OldCtx()
+        ctx.register_tool, ctx.register_automation_blueprint = unittest.mock.Mock(), unittest.mock.Mock()
+        plugin.register(ctx)
+        toolsets = {call.kwargs.get("toolset") for call in ctx.register_tool.call_args_list}
+        self.assertEqual(toolsets, {plugin.TOOLSET})
+        self.assertNotIn(load("address").SERVER_NAME, toolsets)
+
+
 class TelegramFormattingTest(unittest.TestCase):
     """Runs the layout through Hermes' own Telegram formatter when Hermes is installed."""
 

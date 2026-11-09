@@ -8,6 +8,7 @@ from collections import OrderedDict
 
 from . import show
 from .buttons import TelegramCards
+from .address import SERVER_NAME
 from .commands import OPEN_LINK, TOOL_PREFIX, call_cardlake, handle, send_with_buttons, today_reply
 from .feed_view import with_open_link
 
@@ -15,6 +16,11 @@ logger = logging.getLogger(__name__)
 
 MORNING_TITLE = "Cardlake morning"
 TODAY_TOOL = "cardlake_today"
+# Never the connection's own name (SERVER_NAME, "cardlake"): Hermes resolves a name to a plugin's
+# toolset before an MCP server's alias, so a plugin toolset called "cardlake" hid every Cardlake
+# tool from the model, and replies like "done" and forwarded links had nothing to save with.
+TOOLSET = "cardlake-plugin"
+assert TOOLSET != SERVER_NAME
 
 # Blueprint text goes through str.format, so it holds no literal braces.
 MORNING_PROMPT = (
@@ -139,7 +145,7 @@ def register(ctx) -> None:
     ))
     _optional("Telegram buttons", lambda: ctx.register_telegram_handler(buttons.attach))
     _optional("the show-cards tool", lambda: ctx.register_tool(
-        name=show.SHOW_TOOL, toolset="cardlake", schema=show.SHOW_SCHEMA,
+        name=show.SHOW_TOOL, toolset=TOOLSET, schema=show.SHOW_SCHEMA,
         handler=lambda args, **kwargs: show.show_tool(buttons, args),
         description=show.SHOW_SCHEMA["description"], emoji="🃏",
     ))
@@ -150,7 +156,7 @@ def register(ctx) -> None:
 
 def _register_morning(ctx, buttons=None) -> None:
     ctx.register_tool(
-        name=TODAY_TOOL, toolset="cardlake", schema=TODAY_SCHEMA,
+        name=TODAY_TOOL, toolset=TOOLSET, schema=TODAY_SCHEMA,
         handler=lambda args, **kwargs: today_tool(ctx, args, buttons, **kwargs),
         description=TODAY_SCHEMA["description"], emoji="☀️",
     )
