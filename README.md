@@ -1,5 +1,7 @@
 # Cardlake for Hermes Agent
 
+[![Tests](https://github.com/cardleforall/cardlake-hermes/actions/workflows/tests.yml/badge.svg)](https://github.com/cardleforall/cardlake-hermes/actions/workflows/tests.yml)
+
 Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nousresearch.com), laid out as cards in Telegram, with what's due sent to you each morning.
 
 You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It works with a self-hosted copy of Cardlake too: see [Self-hosted Cardlake](#self-hosted-cardlake).
@@ -97,13 +99,26 @@ The message is laid out by the plugin, not written by the model, so it looks the
 - `/cardlake save` sends your text to the model you already use in Hermes, with those secrets removed. The text is treated as content, never as instructions, and the plugin checks the model's answer: it can only create one card.
 - The plugin never reads your past Hermes conversations.
 
+## Troubleshooting
+
+| You see | What to do |
+| --- | --- |
+| "Cardlake isn't connected" | Run `hermes mcp login cardlake`, sign in, then start a new session. |
+| "These buttons are out of date" | Hermes was restarted since those cards were sent, or they're more than 300 messages old. Run the command again for fresh buttons. |
+| Cards arrive as one long message, without buttons | Buttons only work in your private chat with Hermes on Telegram. Check `hermes logs` for a line starting `Cardlake:`. |
+| A tap takes a while | Hermes is busy with a long task; the tap goes through when it's free. |
+| "Still working on the last tap…" | You tapped twice. The first tap is still being saved, and the second is ignored so nothing happens twice. |
+| Nothing arrives in the morning | Check the job with `hermes cron list`. It sends nothing on days when nothing is overdue or due. |
+
+To update the plugin, run `hermes plugins update cardlake`, then restart Hermes.
+
 ## Tests
 
 ```bash
 python -m unittest discover -t . -s tests
 ```
 
-With Hermes installed, it also tests against the real thing; without it, those tests are skipped.
+With Hermes installed, it also tests against the real thing; without it, those tests are skipped. On GitHub, every push runs the tests on Python 3.11 to 3.13, against the latest Hermes (with nothing skipped), and through Hermes' own plugin validator, and once a week in case a Hermes change breaks something.
 
 ## License
 
