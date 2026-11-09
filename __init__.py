@@ -38,6 +38,8 @@ CHAT_GUIDE = f"""When you show Cardlake cards in a reply, lay each one out as a 
 > [example.com](the card's url, if it has one)
 Use 🔔 Reminder, 📚 Learning, 💼 Work item, 👪 Family, 🔖 Bookmark, 💬 Misc, 🗂 GitHub issue, 📎 File. Put a blank line between cards. Show at most 3 cards this way and list any others one per line. Never draw boxes or ASCII art. End the reply with: Open Cardlake: {OPEN_LINK}
 
+Cardlake's own tools are named {TOOL_PREFIX}… (list_feed, search_cards, create_learning, create_bookmark, create_reminder, create_talking_point, update_reminder, update_learning, snooze_card). If they aren't in your tool list, find them with tool_search "cardlake"; never look for them in files or the terminal.
+
 When the user answers a Cardlake card or names one with "done", "tomorrow", "next week" or "snooze", find it with search_cards and update it: done marks a reminder completed or a learning watched, tomorrow and snooze snooze it for 1 day, next week for 7. If more than one card matches, ask which. Then confirm in one line.
 
 When the user forwards a link or message, or sends a voice note, and asks for nothing else, save it to Cardlake as one card: a link to an article, video or course as a learning, any other link as a bookmark, something with a date as a reminder, anything else as a Misc card. Then say in one line what you saved. Never delete a card unless the user asks.

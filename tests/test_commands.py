@@ -328,6 +328,9 @@ class ChatGuideTest(unittest.TestCase):
         self.assertIn('"done", "tomorrow", "next week"', guide)
         self.assertIn("forwards a link", guide)
         self.assertIn("voice note", guide)
+        # Seen live: with Cardlake's tools deferred, the model searched files and the terminal for minutes.
+        self.assertIn("mcp__cardlake__", guide)
+        self.assertIn('tool_search "cardlake"', guide)
         self.assertIn("Never delete a card unless the user asks", guide)
         self.assertIn(feed_view.OPEN_LINK, guide)
 
