@@ -134,7 +134,7 @@ class SplitTest(unittest.TestCase):
         self.assertTrue(tail.startswith("**[More in your feed](https://cardlake.app/vault/)**"))
 
     def test_a_feed_with_more_pages_doesnt_claim_an_exact_count(self):
-        # Seen live: a feed of more than 20 cards said "20 cards" and "…and 12 more in Cardlake".
+        # Cardlake sends a page, not a total: a 20-card page of a longer feed must not claim "20 cards".
         parts = feed_view.split_feed([REMINDER, LEARNING, WORK] + MORE, NOW, more=True)
         self.assertIn("11+ cards", parts[0][0])
         self.assertIn("…and more in Cardlake.", parts[-1][0])
@@ -441,7 +441,7 @@ class FilterTest(unittest.TestCase):
         self.assertIn("⏰ back later today", feed_view.panel(dict(SNOOZED, remind_later_until="2026-11-07T18:00:00Z"), NOW))
 
     def test_a_snooze_that_has_run_out_isnt_shown(self):
-        # Seen live: overdue reminders whose old snooze had ended said "overdue 28 days · back today".
+        # An overdue reminder whose old snooze has ended must not also say "back today".
         old = dict(REMINDER, remind_later_until="2026-11-07T03:00:00Z")
         self.assertNotIn("back", feed_view.panel(old, NOW))
         self.assertNotIn("back", feed_view.line(old, NOW))

@@ -8,6 +8,12 @@ Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nou
 
 You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It works with a self-hosted copy of Cardlake too: see [Self-hosted Cardlake](#self-hosted-cardlake).
 
+## Requirements
+
+- [Hermes Agent](https://hermes-agent.nousresearch.com) 0.22.5 or newer.
+- A free [Cardlake](https://cardlake.app) account, or your own copy of Cardlake.
+- Telegram for the cards with buttons. On other chat platforms the same cards arrive as one message without buttons.
+
 ## Install
 
 ```bash
@@ -36,7 +42,7 @@ hermes mcp add cardlake --url https://cardlake.example.com/api/mcp --auth oauth
 
 There's nothing else to set. The plugin reads that address from Hermes, so every Open Cardlake link and button opens your copy. Restart Hermes after changing it. If your copy's web pages are on a different address from its API, set `CARDLAKE_URL` to the web address (for example `https://cardlake.example.com`) in Hermes' `.env`.
 
-Your copy needs Cardlake's sign-in and tools: the plugin uses the same ones as cardlake.app.
+Your copy needs Cardlake's sign-in and tools: the plugin uses the same ones as cardlake.app. The open-source Cardlake, with a one-click deploy, is [cardleforall/cardlakeforall](https://github.com/cardleforall/cardlakeforall).
 
 ## Commands
 
@@ -103,6 +109,13 @@ The message is laid out by the plugin, not written by the model, so it looks the
 - `/cardlake save` sends your text to the model you already use in Hermes, with those secrets removed. The text is treated as content, never as instructions, and the plugin checks the model's answer: it can only create one card.
 - The plugin never reads your past Hermes conversations.
 
+What the plugin does, so you know before installing:
+
+- **Network:** it talks to Cardlake only through the `cardlake` connection you signed in to (cardlake.app or your own copy), and to Telegram only through the bot Hermes already runs, to send and pin card messages in your private chat. Nothing else.
+- **Your model:** `/cardlake save` asks the model Hermes already uses to pick the card's kind.
+- **Stored data:** it keeps the id of the Today message it pinned, in Hermes' plugin storage, so the next one can replace it. Button state lives in memory and is gone after a restart.
+- **No** shell commands, files read outside its own folder, stored credentials, background processes or telemetry. The only scheduled job is the morning message, and only if you create it.
+
 ## Troubleshooting
 
 | You see | What to do |
@@ -133,6 +146,8 @@ python -m unittest discover -t . -s tests
 ```
 
 With Hermes installed, it also tests against the real thing; without it, those tests are skipped. On GitHub, every push runs the tests on Python 3.11 to 3.13, against the latest Hermes (with nothing skipped), and through Hermes' own plugin validator, and once a week in case a Hermes change breaks something.
+
+What changed in each version is in the [changelog](CHANGELOG.md). Issues are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

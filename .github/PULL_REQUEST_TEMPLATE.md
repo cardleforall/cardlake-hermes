@@ -1,0 +1,1 @@
+**This repository doesn't accept pull requests.** The Cardlake plugin for Hermes has a single maintainer, who writes every change. Please close this and open an issue describing what you'd like changed instead. See `CONTRIBUTING.md`.

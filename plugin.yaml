@@ -3,6 +3,7 @@ label: Cardlake
 version: 0.7.4
 author: Cardlake
 license: AGPL-3.0-only
+requires_hermes: ">=0.22.5"
 homepage: https://github.com/cardleforall/cardlake-hermes
 description: >
   Your Cardlake cards in Hermes, laid out as cards in Telegram. /cardlake feed

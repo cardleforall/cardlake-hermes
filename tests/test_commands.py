@@ -328,7 +328,7 @@ class ChatGuideTest(unittest.TestCase):
         self.assertIn('"done", "tomorrow", "next week"', guide)
         self.assertIn("forwards a link", guide)
         self.assertIn("voice note", guide)
-        # Seen live: with Cardlake's tools deferred, the model searched files and the terminal for minutes.
+        # With Cardlake's tools deferred, the model has to be told how to find them.
         self.assertIn("mcp__cardlake__", guide)
         self.assertIn('tool_search "cardlake"', guide)
         self.assertIn("Never delete a card unless the user asks", guide)
@@ -416,8 +416,8 @@ class OlderHermesTest(unittest.TestCase):
 
 
     def test_plugin_tools_dont_take_the_connections_name(self):
-        # Seen live: with the plugin's tools in a toolset called "cardlake", Hermes resolved the
-        # "cardlake" connection to the plugin's 2 tools and the model never saw Cardlake's 35.
+        # With the plugin's tools in a toolset called "cardlake", Hermes resolves the
+        # "cardlake" connection to the plugin's 2 tools and the model never sees Cardlake's 35.
         ctx = self.OldCtx()
         ctx.register_tool, ctx.register_automation_blueprint = unittest.mock.Mock(), unittest.mock.Mock()
         plugin.register(ctx)
