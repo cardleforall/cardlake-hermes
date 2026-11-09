@@ -4,6 +4,8 @@
 
 Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nousresearch.com), laid out as cards in Telegram, with what's due sent to you each morning.
 
+![/cardlake today in Telegram: tap Tomorrow or Next week on a card, then Undo puts it back](docs/your-cards-in-telegram.gif)
+
 You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It works with a self-hosted copy of Cardlake too: see [Self-hosted Cardlake](#self-hosted-cardlake).
 
 ## Install
@@ -56,6 +58,8 @@ Each card is a quote block, which Telegram shows as a panel: its type, whether i
 No boxes or ASCII art, which only line up in a terminal.
 
 ### In Telegram
+
+<img src="docs/today-in-telegram.jpg" alt="Today's cards in Telegram, one snoozed until tomorrow with an Undo button, and the pinned line saying 4 overdue left" width="420" align="right">
 
 In your private Telegram chat with Hermes, `/cardlake feed`, `today` and `deal` send each card shown in full as its own message, with its buttons right under it: ✅ Done (reminders and learnings), ⏰ Tomorrow and 📅 Next week. The rest of the list follows, with a 🔗 Open Cardlake button.
 
