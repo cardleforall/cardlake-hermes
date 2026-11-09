@@ -430,6 +430,13 @@ class FilterTest(unittest.TestCase):
     def test_snoozed_cards_say_when_they_come_back(self):
         self.assertIn("⏰ back 14 Nov", feed_view.panel(SNOOZED, NOW))
         self.assertIn("⏰ back tomorrow", feed_view.panel(dict(SNOOZED, remind_later_until="2026-11-08T03:00:00Z"), NOW))
+        self.assertIn("⏰ back later today", feed_view.panel(dict(SNOOZED, remind_later_until="2026-11-07T18:00:00Z"), NOW))
+
+    def test_a_snooze_that_has_run_out_isnt_shown(self):
+        # Seen live: overdue reminders whose old snooze had ended said "overdue 28 days · back today".
+        old = dict(REMINDER, remind_later_until="2026-11-07T03:00:00Z")
+        self.assertNotIn("back", feed_view.panel(old, NOW))
+        self.assertNotIn("back", feed_view.line(old, NOW))
         self.assertIn("⏰ back 9 Nov", feed_view.panel(dict(WORK, snoozed_until="2026-11-09T03:00:00Z"), NOW))
 
 

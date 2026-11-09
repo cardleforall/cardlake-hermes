@@ -116,7 +116,7 @@ def _link(card: dict) -> str:
 
 
 def back(card: dict, now: datetime) -> str:
-    """When a snoozed card comes back: 'back tomorrow', 'back 14 Nov', or ''."""
+    """When a snoozed card comes back: 'back later today', 'back tomorrow', 'back 14 Nov', or ''."""
     # list_feed calls it remind_later_until; a snooze's own result calls it snoozed_until.
     raw = str(card.get("remind_later_until") or card.get("snoozed_until") or "")
     try:
@@ -125,9 +125,11 @@ def back(card: dict, now: datetime) -> str:
         return ""
     if until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
+    if until <= now:
+        return ""  # an old snooze that has run out: the card is already back in the feed
     day = until.astimezone(now.tzinfo).date()
-    if day <= now.date():
-        return "⏰ back today"
+    if day == now.date():
+        return "⏰ back later today"
     if (day - now.date()).days == 1:
         return "⏰ back tomorrow"
     return f"⏰ back {day.day} {day:%b}"

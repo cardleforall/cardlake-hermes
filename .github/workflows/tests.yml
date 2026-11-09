@@ -29,15 +29,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Hermes
-        run: python -m pip install "hermes-agent @ git+https://github.com/NousResearch/hermes-agent@main"
+      # Hermes can't be pip-installed; this builds it the way its own plugin validator does.
+      - name: Get Hermes
+        run: |
+          git clone --depth=1 https://github.com/NousResearch/hermes-agent.git "$RUNNER_TEMP/hermes"
+          python3 -S "$RUNNER_TEMP/hermes/scripts/ci/setup_toolchain.py" prepare --toolchain python --home "$RUNNER_TEMP/hermes/.build/pm"
+          python3 -S "$RUNNER_TEMP/hermes/scripts/ci/setup_toolchain.py" install --toolchain python --home "$RUNNER_TEMP/hermes/.build/pm"
+      - name: Build Hermes' Python environment
+        working-directory: ${{ runner.temp }}/hermes
+        run: |
+          "$HERMES_PYTHON" - <<'PY'
+          import os
+          from pathlib import Path
+          from pm import build_environment
+          source = Path(os.environ["RUNNER_TEMP"]) / "hermes"
+          python = build_environment(source=source, out=source / ".build/env", explicit=True)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"HERMES_ENV_PYTHON={python}\n")
+          PY
       - name: Run every test, none skipped
         run: |
-          python -m unittest discover -t . -s tests -v 2>&1 | tee results.txt
-          if grep -q "skipped" results.txt; then
+          "$HERMES_ENV_PYTHON" -m unittest discover -t . -s tests -v 2>&1 | tee results.txt
+          if grep -qE "^(OK|FAILED) \(.*skipped" results.txt; then
             echo "::error::Some tests were skipped, so they didn't run against Hermes"
             exit 1
           fi
