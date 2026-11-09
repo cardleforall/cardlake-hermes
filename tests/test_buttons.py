@@ -133,6 +133,14 @@ class SplitTest(unittest.TestCase):
         tail = feed_view.split_feed([REMINDER, WORK, PINNED, video] + MORE, NOW)[-1][0]
         self.assertTrue(tail.startswith("**[More in your feed](https://cardlake.app/vault/)**"))
 
+    def test_a_feed_with_more_pages_doesnt_claim_an_exact_count(self):
+        # Seen live: a feed of more than 20 cards said "20 cards" and "…and 12 more in Cardlake".
+        parts = feed_view.split_feed([REMINDER, LEARNING, WORK] + MORE, NOW, more=True)
+        self.assertIn("11+ cards", parts[0][0])
+        self.assertIn("…and more in Cardlake.", parts[-1][0])
+        self.assertNotIn("3 more", parts[-1][0])
+        self.assertIn("11+ cards", feed_view.render_feed([REMINDER, LEARNING, WORK] + MORE, NOW, more=True))
+
     def test_no_part_carries_the_link_line(self):
         for text, _ in feed_view.split_feed([REMINDER] + MORE, NOW):
             self.assertNotIn("Open Cardlake:", text)

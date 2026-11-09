@@ -173,10 +173,11 @@ def _head(heading: str, summary: str) -> str:
 
 
 def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "",
-          lead: str = "", full: int = FULL_CARDS, head_on_first: bool = True) -> list[tuple[str, Optional[dict]]]:
+          lead: str = "", full: int = FULL_CARDS, head_on_first: bool = True,
+          more: bool = False) -> list[tuple[str, Optional[dict]]]:
     """The message in parts, for Telegram buttons: (text, the card it shows) for each card shown in
     full, the heading riding on the first, then (text, None) for the rest. No link line: in
-    Telegram that's a button."""
+    Telegram that's a button. `more`: Cardlake has cards beyond these, so the count isn't known."""
     shown = cards[:max(MAX_CARDS, full)]
     head = _head(heading, summary)
     parts: list[tuple[str, Optional[dict]]] = [(panel(card, now), card) for card in shown[:full]]
@@ -186,7 +187,9 @@ def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hin
     rest = shown[full:]
     if rest:
         tail.append("\n".join(line(card, now) for card in rest))
-    if len(cards) > len(shown):
+    if more:
+        tail.append("…and more in Cardlake.")
+    elif len(cards) > len(shown):
         tail.append(f"…and {len(cards) - len(shown)} more in Cardlake.")
     if hint:
         tail.append(f"*{hint}*")
@@ -202,9 +205,10 @@ def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hin
 
 
 def render(cards: list[dict], now: datetime, heading: str, summary: str = "", hint: str = "",
-           full: int = FULL_CARDS) -> str:
+           full: int = FULL_CARDS, more: bool = False) -> str:
     """A heading, the first cards as panels, the rest as single lines, and the link."""
-    return with_open_link("\n\n".join(text for text, _ in split(cards, now, heading, summary, hint, full=full)))
+    parts = split(cards, now, heading, summary, hint, full=full, more=more)
+    return with_open_link("\n\n".join(text for text, _ in parts))
 
 
 def by_urgency(cards: list[dict], now: datetime) -> list[dict]:
@@ -254,10 +258,12 @@ def find_filter(word: str) -> Optional[FeedFilter]:
     return next((f for f in FILTERS if word in f.words), None)
 
 
-def _feed_args(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> tuple:
+def _feed_args(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None, more: bool = False) -> tuple:
     overdue = sum(is_overdue(c, now) for c in cards)
     # "cards", not the filter's noun: the heading already says what kind ("Your learnings · 6 cards").
-    summary = _count(len(cards), "card") + (f", {overdue} overdue" if overdue and not (flt and flt.snoozed) else "")
+    # Cardlake sends a page, not a total: with more after it, "20+ cards", not a wrong "20 cards".
+    count = f"{len(cards)}+ cards" if more else _count(len(cards), "card")
+    summary = count + (f", {overdue} overdue" if overdue and not (flt and flt.snoozed) else "")
     if flt and flt.snoozed:
         # Cardlake already lists these by when they come back. Marked, so their buttons bring them back.
         return [dict(c, _snoozed=True) for c in cards], now, flt.heading, summary
@@ -272,15 +278,16 @@ def _empty(flt: Optional[FeedFilter]) -> str:
     return f"No {flt.noun}s in your feed."
 
 
-def render_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> str:
+def render_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None, more: bool = False) -> str:
     if not cards:
         return with_open_link(_empty(flt))
-    return render(*_feed_args(cards, now, flt))
+    return render(*_feed_args(cards, now, flt, more), more=more)
 
 
-def split_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None) -> list[tuple[str, Optional[dict]]]:
+def split_feed(cards: list[dict], now: datetime, flt: Optional[FeedFilter] = None,
+               more: bool = False) -> list[tuple[str, Optional[dict]]]:
     lead = f"More {flt.noun}s" if flt else _TAIL_LEAD
-    return split(*_feed_args(cards, now, flt), lead=lead) if cards else []
+    return split(*_feed_args(cards, now, flt, more), lead=lead, more=more) if cards else []
 
 
 def today_cards(cards: list[dict], now: datetime) -> list[dict]:

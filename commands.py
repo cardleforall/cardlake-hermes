@@ -123,10 +123,17 @@ def _ask_model(ctx, instructions: str, prompt: str, schema: dict, purpose: str) 
     return _json_from_text(result.text)
 
 
-def _feed(ctx, limit: int, **filters) -> list[dict]:
+def _feed_page(ctx, limit: int, **filters) -> tuple[list[dict], bool]:
+    """The first page of the feed, and whether Cardlake has more cards after it."""
     feed = call_cardlake(ctx, "list_feed", {"limit": limit, **filters})
-    cards = feed.get("cards", []) if isinstance(feed, dict) else []
-    return [c for c in cards if isinstance(c, dict)]
+    if not isinstance(feed, dict):
+        return [], False
+    cards = [c for c in feed.get("cards", []) if isinstance(c, dict)]
+    return cards, bool(feed.get("next_cursor"))
+
+
+def _feed(ctx, limit: int, **filters) -> list[dict]:
+    return _feed_page(ctx, limit, **filters)[0]
 
 
 class Reply(NamedTuple):
@@ -139,8 +146,8 @@ class Reply(NamedTuple):
 
 def feed_reply(ctx, flt: Optional[feed_view.FeedFilter] = None) -> Reply:
     now = local_now()
-    cards = _feed(ctx, _FEED_SIZE, **(flt.args if flt else {}))
-    return Reply(feed_view.render_feed(cards, now, flt), feed_view.split_feed(cards, now, flt))
+    cards, more = _feed_page(ctx, _FEED_SIZE, **(flt.args if flt else {}))
+    return Reply(feed_view.render_feed(cards, now, flt, more), feed_view.split_feed(cards, now, flt, more))
 
 
 def unknown_filter(word: str) -> str:

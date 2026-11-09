@@ -110,7 +110,17 @@ The message is laid out by the plugin, not written by the model, so it looks the
 | "Still working on the last tap…" | You tapped twice. The first tap is still being saved, and the second is ignored so nothing happens twice. |
 | Nothing arrives in the morning | Check the job with `hermes cron list`. It sends nothing on days when nothing is overdue or due. |
 
-To update the plugin, run `hermes plugins update cardlake`, then restart Hermes.
+## Updating
+
+```bash
+hermes plugins update cardlake
+```
+
+Then send `/restart` to Hermes, or run `hermes gateway restart`: until then Hermes keeps running the old version. If the update says cardlake is not in the Hermes plugin catalog, install it again over the old copy (your sign-in and settings stay):
+
+```bash
+hermes plugins install cardleforall/cardlake-hermes --force --enable
+```
 
 ## Tests
 

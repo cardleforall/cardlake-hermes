@@ -25,13 +25,14 @@ class FakeCtx:
     """Records every Cardlake call and answers like Hermes's MCP tools do."""
 
     def __init__(self, search_cards=(), feed=(), llm_answer=None, choice=None, connected=True,
-                 json_mode_error=None, reply_text=None):
+                 json_mode_error=None, reply_text=None, feed_more=False):
         """llm_answer: what Hermes parsed from the reply, or an exception for any model call.
         json_mode_error: an exception for JSON-mode calls only, like a provider that refuses it.
         reply_text: the raw reply text, for when Hermes couldn't parse it."""
         self.calls = []
         self.search_cards = list(search_cards)
         self.feed = list(feed)
+        self.feed_more = feed_more  # Cardlake has another page after this one
         self.choice = choice
         self.connected = connected
         self.choice_asked = None
@@ -62,7 +63,7 @@ class FakeCtx:
         self.calls.append((name, args))
         tool = name.rsplit("__", 1)[1]
         if tool == "list_feed":
-            data = {"cards": self.feed}
+            data = {"cards": self.feed, "next_cursor": "next" if self.feed_more else None}
         elif tool == "search_cards":
             data = {"cards": self.search_cards, "total": len(self.search_cards)}
         else:

@@ -73,6 +73,13 @@ class FeedLayoutTest(unittest.TestCase):
         reply = run(FakeCtx(feed=[LEARNING, OVERDUE]), "feed")
         self.assertLess(reply.index("](https://cardlake.app/vault/)"), reply.index("](https://www.wikipedia.org"))
 
+    def test_a_feed_longer_than_one_page_says_so_instead_of_a_wrong_count(self):
+        many = [dict(MISC, id=str(i), title=f"Idea {i}") for i in range(20)]
+        reply = run(FakeCtx(feed=many, feed_more=True), "feed")
+        self.assertIn("· 20+ cards", reply)
+        self.assertIn("…and more in Cardlake.", reply)
+        self.assertIn("· 20 cards", run(FakeCtx(feed=many), "feed"))
+
     def test_cards_after_the_first_three_get_one_line_each(self):
         many = [dict(MISC, id=str(i), title=f"Idea {i}") for i in range(12)]
         reply = run(FakeCtx(feed=many), "feed")
