@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 PREFIX = "clk:"
 _SEND_TIMEOUT_SECONDS = 60
+_MAX_RETRY_WAIT_SECONDS = 10  # Telegram asks a fast sender to wait; longer than this isn't worth it
 _MAX_MESSAGES = 300  # older messages' buttons say they're out of date
 _PINNED_KEY = "pinned_today"  # chat id -> message id of the Today checklist the plugin pinned
 
@@ -166,6 +167,19 @@ def _session_env(name: str) -> str:
     return get_session_env(name, "") or ""
 
 
+def _formatting_refused(error: Exception) -> bool:
+    """Telegram refused the message's formatting (a Bad Request), as opposed to a network error,
+    where the message may have arrived and sending it again would show it twice."""
+    return type(error).__name__ == "BadRequest" or "can't parse entities" in str(error).lower()
+
+
+def _retry_wait(error: Exception) -> Optional[float]:
+    """Seconds Telegram asked us to wait before sending again (RetryAfter), or None."""
+    wait = getattr(error, "retry_after", None)
+    seconds = getattr(wait, "total_seconds", lambda: wait)()
+    return float(seconds) if isinstance(seconds, (int, float)) and seconds <= _MAX_RETRY_WAIT_SECONDS else None
+
+
 def _plain_text(markdown: str) -> str:
     """The message without Markdown, for when Telegram refuses the formatted version."""
     text = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r"\1 (\2)", markdown)
@@ -239,6 +253,8 @@ class TelegramCards:
         try:
             return future.result(_SEND_TIMEOUT_SECONDS)
         except Exception:
+            # Stop it, or it could carry on sending cards after the plain reply went out too.
+            future.cancel()
             logger.warning("Cardlake: sending cards to Telegram failed", exc_info=True)
             return False
 
@@ -270,16 +286,29 @@ class TelegramCards:
 
     async def _post(self, chat: str, text: str, rows: list, video: str = "") -> int:
         markup = self.markup(rows) if rows else None
+        formatted = dict(text=self.format(text), parse_mode="MarkdownV2")
         try:
-            message = await self.bot.send_message(
-                chat_id=int(chat), text=self.format(text), parse_mode="MarkdownV2",
-                reply_markup=markup, link_preview_options=self.preview(video))
-        except Exception:
+            message = await self._send_once(chat, formatted, markup, video)
+        except Exception as error:
+            if not _formatting_refused(error):
+                raise
             logger.warning("Cardlake: Telegram refused the formatting, sending plain text", exc_info=True)
-            message = await self.bot.send_message(
-                chat_id=int(chat), text=_plain_text(text), reply_markup=markup,
-                link_preview_options=self.preview(video))
+            message = await self._send_once(chat, dict(text=_plain_text(text)), markup, video)
         return message.message_id
+
+    async def _send_once(self, chat: str, content: dict, markup, video: str):
+        """One message, waiting once if Telegram says we're sending too fast (a long Today can be
+        seven messages in a row)."""
+        send = lambda: self.bot.send_message(chat_id=int(chat), reply_markup=markup,
+                                             link_preview_options=self.preview(video), **content)
+        try:
+            return await send()
+        except Exception as error:
+            wait = _retry_wait(error)
+            if wait is None:
+                raise
+            await asyncio.sleep(wait)
+            return await send()
 
     async def _edit(self, chat: str, message: int, text: str) -> None:
         try:
@@ -374,6 +403,17 @@ class TelegramCards:
             return "These buttons are out of date. Run /cardlake feed again."
         card = state["card"]
         title = plain(card.get("title")) or "Untitled"
+        # A second tap while the first is still talking to Cardlake would do it twice: two saved
+        # cards, of which Undo only removes one.
+        if state.get("busy"):
+            return "Still working on the last tap…"
+        state["busy"] = True
+        try:
+            return await self._tap(key, state, card, title, code)
+        finally:
+            state["busy"] = False
+
+    async def _tap(self, key, state: dict, card: dict, title: str, code: str) -> str:
         if code == "u":
             return await self._undo(key, state, title)
         if state["result"]:

@@ -498,5 +498,117 @@ class WhenButtonsAreLeftOutTest(unittest.TestCase):
         self.assertEqual(h.bot.sent, {})
 
 
+class SlowCtx(FakeCtx):
+    """Cardlake answering slowly: each change waits until the test lets it through."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.release = threading.Event()
+
+    def dispatch_tool(self, name, args):
+        if not name.endswith(("list_feed", "search_cards")):
+            self.release.wait(5)
+        return super().dispatch_tool(name, args)
+
+
+class DoubleTapTest(unittest.TestCase):
+    def test_a_second_tap_while_the_first_is_running_does_nothing(self):
+        h = Harness([WORK])
+        h.ctx = SlowCtx(feed=[WORK])
+        h.cards.run_tool = lambda tool, args: commands.call_cardlake(h.ctx, tool, args)
+        try:
+            h.run("feed")
+            first = asyncio.run_coroutine_threadsafe(h.cards.tap("42", "1", "private", "clk:t"), h.loop)
+            for _ in range(100):  # until the first tap is waiting on Cardlake
+                if h.cards.messages[("42", "1")].get("busy"):
+                    break
+                threading.Event().wait(0.01)
+            self.assertEqual(h.tap(1, "clk:w"), "Still working on the last tap…")
+            h.ctx.release.set()
+            self.assertEqual(first.result(5), "Snoozed until tomorrow: Customer interviews")
+            self.assertEqual(len(h.ctx.written()), 1)
+            self.assertEqual(h.tap(1, "clk:u"), "Undone: Customer interviews")
+        finally:
+            h.close()
+
+
+class BadRequest(Exception):
+    """Named like python-telegram-bot's, which is what the plugin checks for."""
+
+
+class FlakyBot(FakeBot):
+    """Fails the first send with the given error, then works."""
+
+    def __init__(self, error):
+        super().__init__()
+        self.error, self.attempts = error, 0
+
+    async def send_message(self, *args, **kwargs):
+        self.attempts += 1
+        if self.attempts == 1:
+            raise self.error
+        return await super().send_message(*args, **kwargs)
+
+
+class SendErrorsTest(unittest.TestCase):
+    def run_feed(self, bot):
+        h = Harness([WORK], bot=bot)
+        try:
+            return h.run("feed"), h
+        finally:
+            h.close()
+
+    def test_a_network_error_is_not_resent_as_a_second_copy(self):
+        # The first message may have arrived; Hermes' own plain reply is the one fallback.
+        reply, h = self.run_feed(FlakyBot(TimeoutError("Timed out")))
+        self.assertIn("Customer interviews", reply)
+        self.assertEqual(h.bot.attempts, 1)
+
+    def test_a_bad_request_is_resent_as_plain_text(self):
+        reply, h = self.run_feed(FlakyBot(BadRequest("Can't find end of the entity")))
+        self.assertEqual(reply, "")
+        self.assertIsNone(h.bot.sent[1]["parse_mode"])
+
+    def test_sending_too_fast_waits_and_sends_once(self):
+        error = Exception("Flood control exceeded")
+        error.retry_after = 0.01
+        reply, h = self.run_feed(FlakyBot(error))
+        self.assertEqual(reply, "")
+        self.assertEqual(len(h.bot.sent), 1)
+        self.assertEqual(h.bot.sent[1]["parse_mode"], "MarkdownV2")
+
+    def test_a_long_wait_isnt_worth_it(self):
+        error = Exception("Flood control exceeded")
+        error.retry_after = 600
+        reply, h = self.run_feed(FlakyBot(error))
+        self.assertIn("Customer interviews", reply)
+
+    def test_a_send_that_times_out_is_stopped(self):
+        h = Harness([WORK])
+        try:
+            started = threading.Event()
+
+            async def hang(*args, **kwargs):
+                started.set()
+                await asyncio.sleep(30)
+            h.bot.send_message = hang
+            original, buttons._SEND_TIMEOUT_SECONDS = buttons._SEND_TIMEOUT_SECONDS, 0.2
+            try:
+                reply = h.run("feed")
+            finally:
+                buttons._SEND_TIMEOUT_SECONDS = original
+            self.assertIn("Customer interviews", reply)
+            self.assertTrue(started.is_set())
+            pending = asyncio.run_coroutine_threadsafe(_other_tasks(), h.loop).result(5)
+            self.assertEqual(pending, 0)
+        finally:
+            h.close()
+
+
+async def _other_tasks():
+    await asyncio.sleep(0.05)  # let the cancellation land
+    return len([t for t in asyncio.all_tasks() if t is not asyncio.current_task()])
+
+
 if __name__ == "__main__":
     unittest.main()
