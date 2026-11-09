@@ -4,7 +4,7 @@
 
 Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nousresearch.com), laid out as cards in Telegram, with what's due sent to you each morning.
 
-![Cardlake in Hermes Agent: /cardlake today in Telegram, then tap Tomorrow, Next week and Undo on real cards](docs/your-cards-in-telegram.gif)
+![Cardlake in Hermes Agent: your feed in Telegram, tap Tomorrow and Undo on a reminder, Done on a learning, and send a link to save it](docs/your-cards-in-telegram.gif)
 
 You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It works with a self-hosted copy of Cardlake too: see [Self-hosted Cardlake](#self-hosted-cardlake).
 
