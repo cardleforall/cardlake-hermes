@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.5 (10 Nov 2026)
+
+- `/cardlake` now shows in Telegram's `/` menu. Hermes fills that menu with its own commands first and stops at 60, so plugin commands were left out; the plugin now adds `/cardlake` itself after Hermes connects to Telegram, and again after each reconnect. A Telegram menu you've set up yourself in Hermes is left alone.
+
 ## 0.7.4 (9 Nov 2026)
 
 - **Fixed: replying "done" to a card and sending a link to save it never worked.** The plugin's own tools were in a toolset named `cardlake`, the name the README gives the Cardlake connection, and Hermes then hid all of Cardlake's tools from the model. The plugin's toolset is now `cardlake-plugin`.

@@ -18,7 +18,8 @@ from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-from . import feed_view, show
+from . import feed_view, menu, show
+from .address import _hermes_config
 from .feed_view import OPEN_LINK, plain
 
 logger = logging.getLogger(__name__)
@@ -189,7 +190,8 @@ def _plain_text(markdown: str) -> str:
 # The sender -------------------------------------------------------------------------------------
 
 class TelegramCards:
-    def __init__(self, ctx, run_tool: Callable[[str, dict], Any], session_env: Callable[[str], str] = _session_env):
+    def __init__(self, ctx, run_tool: Callable[[str, dict], Any], session_env: Callable[[str], str] = _session_env,
+                 load_config: Callable[[], Any] = _hermes_config):
         """run_tool(tool, args) calls Cardlake (with redaction) and raises on failure."""
         self.ctx = ctx
         self.run_tool = run_tool
@@ -204,6 +206,8 @@ class TelegramCards:
         # Today checklists: batch id -> {"chat", "message", "cards", "results", "now"}
         self.batches: dict[int, dict] = {}
         self._next_batch = 0
+        self.load_config = load_config
+        self._menu_task: Optional[asyncio.Task] = None
 
     # Wiring -------------------------------------------------------------------------------------
 
@@ -222,6 +226,21 @@ class TelegramCards:
             self.loop = None
         # Scoped to our prefix: Hermes' own buttons keep working.
         native.add_handler(CallbackQueryHandler(self.on_tap, pattern=f"^{PREFIX}"))
+        try:
+            self._keep_in_menu(native.bot)
+        except Exception:
+            logger.debug("Cardlake: couldn't start the command menu check", exc_info=True)
+
+    def _keep_in_menu(self, bot) -> None:
+        """Puts /cardlake in Telegram's / menu after each connect (see menu.py)."""
+        if self.loop is None or menu.menu_is_users(self.load_config):
+            return
+        from telegram import BotCommand, BotCommandScopeAllGroupChats, BotCommandScopeAllPrivateChats, BotCommandScopeDefault
+        if self._menu_task is not None:
+            self._menu_task.cancel()
+        scopes = [BotCommandScopeDefault(), BotCommandScopeAllPrivateChats(), BotCommandScopeAllGroupChats()]
+        self._menu_task = self.loop.create_task(
+            menu.keep_in_menu(bot, scopes, lambda: BotCommand(menu.COMMAND, menu.DESCRIPTION)))
 
     def chat(self) -> Optional[str]:
         """The private Telegram chat this reply goes to, or None to send plain text instead."""

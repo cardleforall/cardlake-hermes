@@ -111,7 +111,7 @@ The message is laid out by the plugin, not written by the model, so it looks the
 
 What the plugin does, so you know before installing:
 
-- **Network:** it talks to Cardlake only through the `cardlake` connection you signed in to (cardlake.app or your own copy), and to Telegram only through the bot Hermes already runs, to send and pin card messages in your private chat. Nothing else.
+- **Network:** it talks to Cardlake only through the `cardlake` connection you signed in to (cardlake.app or your own copy), and to Telegram only through the bot Hermes already runs: to send and pin card messages in your private chat, and to add `/cardlake` to the bot's `/` menu (unless you've set that menu up yourself). Nothing else.
 - **Your model:** `/cardlake save` asks the model Hermes already uses to pick the card's kind.
 - **Stored data:** it keeps the id of the Today message it pinned, in Hermes' plugin storage, so the next one can replace it. Button state lives in memory and is gone after a restart.
 - **No** shell commands, files read outside its own folder, stored credentials, background processes or telemetry. The only scheduled job is the morning message, and only if you create it.
@@ -121,7 +121,7 @@ What the plugin does, so you know before installing:
 | You see | What to do |
 | --- | --- |
 | "Cardlake isn't connected" | Run `hermes mcp login cardlake`, sign in, then start a new session. |
-| `/cardlake` isn't in Telegram's `/` menu | Telegram's menu holds 60 commands and Hermes' own come first; typing `/cardlake` still works. To list it, run `hermes config set platforms.telegram.extra.command_menu.priority cardlake`, then `hermes gateway restart`. |
+| `/cardlake` isn't in Telegram's `/` menu | The plugin adds it within a couple of minutes of Hermes connecting to Telegram; reopen the chat to refresh the menu. If you've set up Hermes' Telegram menu yourself (`platforms.telegram.extra.command_menu`), the plugin leaves it alone: add `cardlake` to its `priority` list. Typing `/cardlake` always works. |
 | "These buttons are out of date" | Hermes was restarted since those cards were sent, or they're more than 300 messages old. Run the command again for fresh buttons. |
 | Cards arrive as one long message, without buttons | Buttons only work in your private chat with Hermes on Telegram. Check `hermes logs` for a line starting `Cardlake:`. |
 | A tap takes a while | Hermes is busy with a long task; the tap goes through when it's free. |
