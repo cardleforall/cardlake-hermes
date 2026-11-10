@@ -121,6 +121,7 @@ What the plugin does, so you know before installing:
 | You see | What to do |
 | --- | --- |
 | "Cardlake isn't connected" | Run `hermes mcp login cardlake`, sign in, then start a new session. |
+| `/cardlake` isn't in Telegram's `/` menu | Telegram's menu holds 60 commands and Hermes' own come first; typing `/cardlake` still works. To list it, run `hermes config set platforms.telegram.extra.command_menu.priority cardlake`, then `hermes gateway restart`. |
 | "These buttons are out of date" | Hermes was restarted since those cards were sent, or they're more than 300 messages old. Run the command again for fresh buttons. |
 | Cards arrive as one long message, without buttons | Buttons only work in your private chat with Hermes on Telegram. Check `hermes logs` for a line starting `Cardlake:`. |
 | A tap takes a while | Hermes is busy with a long task; the tap goes through when it's free. |
