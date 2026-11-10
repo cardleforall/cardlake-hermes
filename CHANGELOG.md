@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.9 (10 Nov 2026)
+
+- README: how to turn the plugin off (and the morning message, and the Cardlake connection), and that sign-up on cardlake.app has a waitlist when it's full.
+
 ## 0.7.8 (10 Nov 2026)
 
 - The description, README and `/cardlake` help now say what Cardlake is before what the plugin adds, for people meeting it in Hermes' plugin catalog.

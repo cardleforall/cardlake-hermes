@@ -11,7 +11,7 @@ You need a free Cardlake account, and nothing to host: the plugin runs inside He
 ## Requirements
 
 - [Hermes Agent](https://hermes-agent.nousresearch.com) 0.22.5 or newer.
-- A free [Cardlake](https://cardlake.app) account, or your own copy of Cardlake.
+- A free [Cardlake](https://cardlake.app) account, or your own copy of Cardlake. Sign-up on cardlake.app is open while there's room; when it's full, you join a waitlist and get an email once you're in.
 - Telegram for the cards with buttons. On other chat platforms the same cards arrive as one message without buttons.
 
 ## Install
@@ -149,6 +149,26 @@ Then send `/restart` to Hermes, or run `hermes gateway restart`: until then Herm
 ```bash
 hermes plugins install cardleforall/cardlake-hermes --force --enable
 ```
+
+## Turning it off
+
+Turn off the plugin and keep everything else:
+
+```bash
+hermes plugins disable cardlake
+```
+
+Then restart Hermes (`hermes gateway restart`). `/cardlake`, the buttons and the cards in chat stop, and `/cardlake` leaves Telegram's `/` menu the next time Hermes connects. `hermes plugins enable cardlake` turns it back on.
+
+If you set up the morning message, stop it too: find the **Cardlake morning** job with `hermes cron list`, then `hermes cron pause <id>` or `hermes cron remove <id>`.
+
+The plugin and the Cardlake connection are separate. With the plugin off, Hermes can still read and save cards when you ask in plain words. To disconnect Hermes from Cardlake as well:
+
+```bash
+hermes mcp remove cardlake
+```
+
+To delete the plugin, run `hermes plugins remove cardlake`. None of this touches your cards: they stay in Cardlake, and you can keep using them there.
 
 ## Tests
 
