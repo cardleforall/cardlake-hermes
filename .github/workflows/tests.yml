@@ -47,6 +47,8 @@ jobs:
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
               env.write(f"HERMES_ENV_PYTHON={python}\n")
           PY
+      - name: Hermes Plugin Doctor
+        run: '"$HERMES_ENV_PYTHON" -m hermes_cli.main plugins doctor . --ci'
       - name: Run every test, none skipped
         run: |
           "$HERMES_ENV_PYTHON" -m unittest discover -t . -s tests -v 2>&1 | tee results.txt

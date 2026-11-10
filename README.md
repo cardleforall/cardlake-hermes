@@ -16,6 +16,14 @@ You need a free Cardlake account, and nothing to host: the plugin runs inside He
 
 ## Install
 
+From the [Hermes plugin catalog](https://hermes-agent.nousresearch.com/docs/user-guide/features/plugin-catalog):
+
+```bash
+hermes plugins install cardlake --enable
+```
+
+Or straight from GitHub:
+
 ```bash
 hermes plugins install cardleforall/cardlake-hermes --enable
 ```
@@ -65,7 +73,7 @@ No boxes or ASCII art, which only line up in a terminal.
 
 ### In Telegram
 
-<img src="docs/today-in-telegram.jpg" alt="Today's cards in Telegram, one snoozed until tomorrow with an Undo button, and the pinned line saying 4 overdue left" width="420" align="right">
+![Today's cards in Telegram, one snoozed until tomorrow with an Undo button, and the pinned line saying 4 overdue left](docs/today-in-telegram-small.jpg)
 
 In your private Telegram chat with Hermes, `/cardlake feed`, `today` and `deal` send each card shown in full as its own message, with its buttons right under it: ✅ Done (reminders and learnings), ⏰ Tomorrow and 📅 Next week. The rest of the list follows, with a 🔗 Open Cardlake button.
 
