@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.8 (10 Nov 2026)
+
+- The description, README and `/cardlake` help now say what Cardlake is before what the plugin adds, for people meeting it in Hermes' plugin catalog.
+
 ## 0.7.7 (10 Nov 2026)
 
 - Reads the Hermes profile it was loaded for. Commands, buttons and hooks run after Hermes has finished loading plugins, where Hermes' config reader can fall back to the default home; with Hermes running another profile, the plugin could miss that profile's Cardlake address and time zone.

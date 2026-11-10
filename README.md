@@ -2,11 +2,11 @@
 
 [![Tests](https://github.com/cardleforall/cardlake-hermes/actions/workflows/tests.yml/badge.svg)](https://github.com/cardleforall/cardlake-hermes/actions/workflows/tests.yml)
 
-Your [Cardlake](https://cardlake.app) cards in [Hermes](https://hermes-agent.nousresearch.com), laid out as cards in Telegram, with what's due sent to you each morning.
+[Cardlake](https://cardlake.app) keeps what you mean to get back to (reminders, articles and videos to learn from, links, work) in one daily feed. This plugin puts that feed in your Telegram chat with [Hermes](https://hermes-agent.nousresearch.com): tap Done, Tomorrow or Undo on each card, see what's due each morning, and send Hermes a link to save it.
 
 ![Cardlake in Hermes Agent: your feed in Telegram, tap Tomorrow and Undo on a reminder, Done on a learning, and send a link to save it](docs/your-cards-in-telegram.gif)
 
-You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. It works with a self-hosted copy of Cardlake too: see [Self-hosted Cardlake](#self-hosted-cardlake).
+You need a free Cardlake account, and nothing to host: the plugin runs inside Hermes and connects to cardlake.app. Or host your own Cardlake: see [Self-hosted Cardlake](#self-hosted-cardlake).
 
 ## Requirements
 

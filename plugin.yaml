@@ -1,15 +1,17 @@
 name: cardlake
 label: Cardlake
-version: 0.7.7
+version: 0.7.8
 author: Cardlake
 license: AGPL-3.0-only
 requires_hermes: ">=0.22.5"
 homepage: https://github.com/cardleforall/cardlake-hermes
 description: >
-  Your Cardlake cards in Hermes, laid out as cards in Telegram. /cardlake feed
-  and today show your feed and what's due, save and snooze change cards, and a
-  morning blueprint sends what's overdue or due today. Passwords, API keys and
-  tokens are removed before anything is sent. Needs a Cardlake account.
+  Cardlake keeps what you mean to get back to (reminders, articles and videos to
+  learn from, links, work) in one daily feed. This plugin puts that feed in your
+  Telegram chat with Hermes: tap Done, Tomorrow or Undo on each card, see what's
+  due each morning, and send Hermes a link to save it. Passwords, API keys and
+  tokens are removed before anything is sent. Free account at cardlake.app, or
+  host your own.
 provides_tools:
   - cardlake_today
   - cardlake_show_cards
