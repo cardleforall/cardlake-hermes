@@ -11,7 +11,7 @@ You need a free Cardlake account, and nothing to host: the plugin runs inside He
 ## Requirements
 
 - [Hermes Agent](https://hermes-agent.nousresearch.com) 0.22.5 or newer.
-- A free [Cardlake](https://cardlake.app) account, or your own copy of Cardlake. Sign-up on cardlake.app is open while there's room; when it's full, you join a waitlist and get an email once you're in.
+- A free [Cardlake](https://cardlake.app) account, or your own copy of Cardlake.
 - Telegram for the cards with buttons. On other chat platforms the same cards arrive as one message without buttons.
 
 ## Install

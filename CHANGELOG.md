@@ -2,7 +2,7 @@
 
 ## 0.7.9 (10 Nov 2026)
 
-- README: how to turn the plugin off (and the morning message, and the Cardlake connection), and that sign-up on cardlake.app has a waitlist when it's full.
+- README: how to turn the plugin off (and the morning message, and the Cardlake connection).
 
 ## 0.7.8 (10 Nov 2026)
 
