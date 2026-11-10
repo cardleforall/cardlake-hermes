@@ -13,7 +13,7 @@ from datetime import timedelta
 from typing import Any, Optional
 
 from . import feed_view
-from .feed_view import MAX_CARDS, OPEN_LINK, plain, with_open_link
+from .feed_view import MAX_CARDS, plain, with_open_link
 
 logger = logging.getLogger(__name__)
 

@@ -15,9 +15,8 @@ from typing import Any, NamedTuple, Optional
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-from .address import ADDRESS
+from .address import open_link
 
-OPEN_LINK = f"{ADDRESS}/vault/"
 FULL_CARDS = 3  # shown as panels; the rest get one line each
 MAX_CARDS = 8   # a chat message isn't the place for the whole feed; the link is
 
@@ -49,7 +48,7 @@ def local_now() -> datetime:
 
 
 def with_open_link(text: str) -> str:
-    return f"{text.rstrip()}\n\nOpen Cardlake: {OPEN_LINK}"
+    return f"{text.rstrip()}\n\nOpen Cardlake: {open_link()}"
 
 
 def plain(text: Any) -> str:
@@ -168,7 +167,7 @@ def _head(heading: str, summary: str) -> str:
     # Telegram previews the first link in a message. Linking the heading makes that Cardlake,
     # not whichever video or article happens to be the first card. Hermes can only turn
     # previews off for every message it sends, so this keeps the choice to this plugin.
-    head = f"**[{heading}]({OPEN_LINK})**"
+    head = f"**[{heading}]({open_link()})**"
     return f"{head} · {summary}" if summary else head
 
 
@@ -198,7 +197,7 @@ def split(cards: list[dict], now: datetime, heading: str, summary: str = "", hin
     elif tail and lead:
         # Its own message, so its first link is the one Telegram previews: make that Cardlake too,
         # not a video from the list.
-        tail.insert(0, f"**[{lead}]({OPEN_LINK})**")
+        tail.insert(0, f"**[{lead}]({open_link()})**")
     if tail:
         parts.append(("\n\n".join(tail), None))
     return parts

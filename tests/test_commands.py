@@ -225,7 +225,7 @@ class SaveTest(unittest.TestCase):
 
     def test_not_connected_gives_the_connect_command_before_spending_on_the_model(self):
         ctx = FakeCtx(llm_answer={"kind": "todo", "title": "x"}, connected=False)
-        self.assertIn(commands.CONNECT_COMMAND, run(ctx, "save x"))
+        self.assertIn(commands.connect_command(), run(ctx, "save x"))
         self.assertEqual(ctx.prompts, [])
 
 
@@ -321,7 +321,7 @@ class MorningGuardTest(unittest.TestCase):
 
 class ChatGuideTest(unittest.TestCase):
     def test_guide_covers_layout_replies_and_forwards_within_hermes_limit(self):
-        guide = plugin.CHAT_GUIDE
+        guide = plugin.chat_guide()
         self.assertLessEqual(len(guide), 4000)
         self.assertIn("> 🔔 **Reminder**", guide)
         self.assertIn("Never draw boxes", guide)
@@ -332,10 +332,10 @@ class ChatGuideTest(unittest.TestCase):
         self.assertIn("mcp__cardlake__", guide)
         self.assertIn('tool_search "cardlake"', guide)
         self.assertIn("Never delete a card unless the user asks", guide)
-        self.assertIn(feed_view.OPEN_LINK, guide)
+        self.assertIn(load("address").open_link(), guide)
 
     def test_guide_never_asks_hermes_to_read_past_chats(self):
-        lowered = plugin.CHAT_GUIDE.lower()
+        lowered = plugin.chat_guide().lower()
         for phrase in ("session_search", "past conversation", "yesterday's conversation"):
             self.assertNotIn(phrase, lowered)
 

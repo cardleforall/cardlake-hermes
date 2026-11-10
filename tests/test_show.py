@@ -141,7 +141,7 @@ class ShowToolElsewhereTest(unittest.TestCase):
         self.assertIn("error", json.loads(show.show_tool(None, {"cards": "nope"})) | {"error": 1})
 
     def test_hermes_is_told_when_to_use_it(self):
-        self.assertIn("cardlake_show_cards", plugin.CHAT_GUIDE)
+        self.assertIn("cardlake_show_cards", plugin.chat_guide())
         self.assertIn("one short line", show.SHOW_SCHEMA["description"])
 
 

@@ -1,6 +1,6 @@
 name: cardlake
 label: Cardlake
-version: 0.7.5
+version: 0.7.6
 author: Cardlake
 license: AGPL-3.0-only
 requires_hermes: ">=0.22.5"

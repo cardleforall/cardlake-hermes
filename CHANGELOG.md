@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.6 (10 Nov 2026)
+
+- Links and buttons follow a changed Cardlake connection without a restart. Hermes reconnects to a changed `cardlake` connection by itself, but the plugin read the address only when Hermes started, so after switching to a self-hosted copy the cards came from the new copy while Open Cardlake still went to the old one. The address is now read when a link is made (at most every 30 seconds).
+- README: what to do when sign-in ends on "site can't be reached"; a catalog install line; a card image for the catalog.
+- CI runs Hermes' Plugin Doctor.
+
 ## 0.7.5 (10 Nov 2026)
 
 - `/cardlake` now shows in Telegram's `/` menu. Hermes fills that menu with its own commands first and stops at 60, so plugin commands were left out; the plugin now adds `/cardlake` itself after Hermes connects to Telegram, and again after each reconnect. A Telegram menu you've set up yourself in Hermes is left alone.

@@ -46,8 +46,41 @@ class AddressTest(unittest.TestCase):
                              "https://cardlake.app", bad)
 
     def test_links_and_connect_hint_use_the_address(self):
-        self.assertEqual(feed_view.OPEN_LINK, f"{address.ADDRESS}/vault/")
-        self.assertIn(f"--url {address.ADDRESS}/api/mcp", commands.CONNECT_COMMAND)
+        self.assertEqual(address.open_link(), f"{address.current()}/vault/")
+        self.assertIn(f"--url {address.current()}/api/mcp", commands.connect_command())
+
+
+class FollowsAChangedConnectionTest(unittest.TestCase):
+    """Hermes reconnects to a changed connection without a restart, so the links must follow."""
+
+    def setUp(self):
+        self.url = "https://cardlake.app/api/mcp"
+        self.now = 1000.0
+        self.saved = (address._hermes_config, dict(address._cache))
+        address._hermes_config = lambda: {"mcp_servers": {"cardlake": {"url": self.url}}}
+        address._cache.update(address=None, at=0.0)
+        self.clock = lambda: self.now
+
+    def tearDown(self):
+        address._hermes_config, cache = self.saved
+        address._cache.clear()
+        address._cache.update(cache)
+
+    def test_the_address_is_reread_after_the_connection_changes(self):
+        self.assertEqual(address.current(env={}, clock=self.clock), "https://cardlake.app")
+        self.url = "https://cards.example.com/api/mcp"
+        self.now += 5
+        self.assertEqual(address.current(env={}, clock=self.clock), "https://cardlake.app")  # cached briefly
+        self.now += 60
+        self.assertEqual(address.current(env={}, clock=self.clock), "https://cards.example.com")
+
+    def test_links_buttons_and_the_chat_guide_follow_it(self):
+        self.url = "https://cards.example.com/api/mcp"
+        plugin, buttons = load(), load("buttons")
+        self.assertTrue(feed_view.with_open_link("x").endswith("Open Cardlake: https://cards.example.com/vault/"))
+        self.assertEqual(buttons.keyboard_rows(None, last=True), [[{"text": "🔗 Open Cardlake", "url": "https://cards.example.com/vault/"}]])
+        self.assertIn("Open Cardlake: https://cards.example.com/vault/", plugin.chat_guide())
+        self.assertIn("--url https://cards.example.com/api/mcp", commands.not_connected())
 
 
 if __name__ == "__main__":

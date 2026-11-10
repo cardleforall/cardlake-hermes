@@ -8,14 +8,13 @@ from typing import Any, NamedTuple, Optional
 
 from . import cards as card_logic
 from . import feed_view
-from .address import ADDRESS, SERVER_NAME
-from .feed_view import OPEN_LINK, local_now, with_open_link
+from .address import SERVER_NAME, current
+from .feed_view import local_now, with_open_link
 from .redact import redact, redact_text
 
 logger = logging.getLogger(__name__)
 
 TOOL_PREFIX = f"mcp__{SERVER_NAME}__"
-CONNECT_COMMAND = f"hermes mcp add {SERVER_NAME} --url {ADDRESS}/api/mcp --auth oauth"
 USAGE = (
     "Usage:\n"
     "/cardlake feed: show your feed\n"
@@ -25,10 +24,6 @@ USAGE = (
     "/cardlake save <text>: save text as a card\n"
     "/cardlake snooze <text>: snooze the card that matches"
 )
-NOT_CONNECTED = (
-    "Cardlake isn't connected, so nothing changed. Run this in a terminal, sign in, then start a new session:\n"
-    f"{CONNECT_COMMAND}"
-)
 _TYPE_LABELS = {
     "reminder": "Reminder", "learning": "Learning", "kanban": "GitHub issue", "work": "Work item",
     "family": "Family", "bookmark": "Bookmark", "talking_point": "Misc", "file": "File",
@@ -37,6 +32,15 @@ _FEED_SIZE = 20
 _TODAY_SCAN = 50  # due and overdue reminders come first in the feed's order
 _DEAL_SCAN = 50
 _QUERY_LIMIT = 100  # search_cards refuses longer queries
+
+
+def connect_command() -> str:
+    return f"hermes mcp add {SERVER_NAME} --url {current()}/api/mcp --auth oauth"
+
+
+def not_connected() -> str:
+    return ("Cardlake isn't connected, so nothing changed. Run this in a terminal, sign in, then start a new "
+            f"session:\n{connect_command()}")
 
 
 class CardlakeError(Exception):
@@ -58,7 +62,7 @@ def call_cardlake(ctx, tool: str, args: dict) -> Any:
         message = str(reply["error"])
         lowered = message.lower()
         if "unknown tool" in lowered or "not connected" in lowered or "needs_reauth" in lowered:
-            raise NotConnected(NOT_CONNECTED)
+            raise NotConnected(not_connected())
         raise CardlakeError(message)
     if not isinstance(reply, dict):
         return reply

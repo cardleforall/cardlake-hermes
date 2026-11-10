@@ -38,6 +38,8 @@ hermes mcp add cardlake --url https://cardlake.app/api/mcp --auth oauth
 
 Keep the name `cardlake`, and don't add a client name, client id or fixed port: those turn off the sign-in Cardlake accepts. To sign in again later, run `hermes mcp login cardlake`.
 
+If the browser ends on "site can't be reached" after you sign in, copy the full address it shows (`http://127.0.0.1:27890/callback?code=…`) and paste it into the terminal, where Hermes asks for the redirect URL. This happens when the browser can't reach Hermes directly, for example when Hermes runs on another machine, or after the sign-in step stopped waiting.
+
 This is a separate step because a Hermes plugin with commands can't carry a sign-in connection of its own.
 
 ## Self-hosted Cardlake
@@ -48,7 +50,7 @@ Connect to your own copy's address instead of cardlake.app, keeping the name `ca
 hermes mcp add cardlake --url https://cardlake.example.com/api/mcp --auth oauth
 ```
 
-There's nothing else to set. The plugin reads that address from Hermes, so every Open Cardlake link and button opens your copy. Restart Hermes after changing it. If your copy's web pages are on a different address from its API, set `CARDLAKE_URL` to the web address (for example `https://cardlake.example.com`) in Hermes' `.env`.
+There's nothing else to set. The plugin reads that address from Hermes, so every Open Cardlake link and button opens your copy, and follows a changed connection within a minute. If your copy's web pages are on a different address from its API, set `CARDLAKE_URL` to the web address (for example `https://cardlake.example.com`) in Hermes' `.env`.
 
 Your copy needs Cardlake's sign-in and tools: the plugin uses the same ones as cardlake.app. The open-source Cardlake, with a one-click deploy, is [cardleforall/cardlakeforall](https://github.com/cardleforall/cardlakeforall).
 

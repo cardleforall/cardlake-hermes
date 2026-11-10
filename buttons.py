@@ -20,7 +20,8 @@ from typing import Any, Callable, Optional
 
 from . import feed_view, menu, show
 from .address import _hermes_config
-from .feed_view import OPEN_LINK, plain
+from .address import open_link
+from .feed_view import plain
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,8 @@ def has_done(card: dict) -> bool:
     return action_for(card, "d") is not None
 
 
-_OPEN_ROW = [{"text": "🔗 Open Cardlake", "url": OPEN_LINK}]
+def _open_row() -> list[dict]:
+    return [{"text": "🔗 Open Cardlake", "url": open_link()}]
 
 
 def keyboard_rows(card: Optional[dict], result: Optional[str] = None, last: bool = False,
@@ -150,7 +152,7 @@ def keyboard_rows(card: Optional[dict], result: Optional[str] = None, last: bool
                     {"text": "📅 Next week", "callback_data": f"{PREFIX}w"}]
             rows.append(row)
     if last:
-        rows.append(_OPEN_ROW)
+        rows.append(_open_row())
     return rows
 
 

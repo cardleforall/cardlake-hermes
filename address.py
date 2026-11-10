@@ -4,12 +4,16 @@ There's nothing extra to set: the address comes from the Cardlake connection Her
 already has (`hermes mcp add cardlake --url <address>/api/mcp`), so the links in
 replies and buttons always open the same Cardlake the cards came from.
 CARDLAKE_URL overrides it, for a copy whose web address differs from its API's.
+
+It's read when a link is made, not once at start: Hermes reconnects to a changed
+connection by itself, without a restart, and the links have to follow it.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import time
 from typing import Callable, Mapping, Optional
 
 DEFAULT = "https://cardlake.app"
@@ -47,6 +51,21 @@ def cardlake_address(env: Mapping[str, str] = os.environ,
     return _clean(env.get("CARDLAKE_URL")) or _from_connection(load_config) or DEFAULT
 
 
-# Read once when Hermes loads the plugin. Changing the connection needs a restart
-# anyway, which reloads this too.
-ADDRESS = cardlake_address()
+_REREAD_SECONDS = 30.0  # Hermes notices a changed connection within about a minute
+_cache: dict = {"address": None, "at": 0.0}
+
+
+def current(env: Mapping[str, str] = None, load_config: Callable[[], Mapping] = None,
+            clock: Callable[[], float] = time.monotonic) -> str:
+    """The Cardlake address now, re-read from Hermes' config at most every 30 seconds."""
+    now = clock()
+    if _cache["address"] and now - _cache["at"] < _REREAD_SECONDS:
+        return _cache["address"]
+    address = cardlake_address(os.environ if env is None else env, load_config or _hermes_config)
+    _cache.update(address=address, at=now)
+    return address
+
+
+def open_link() -> str:
+    """Where "Open Cardlake" goes: the feed page of the current Cardlake."""
+    return f"{current()}/vault/"

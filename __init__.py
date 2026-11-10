@@ -9,7 +9,8 @@ from collections import OrderedDict
 from . import show
 from .buttons import TelegramCards
 from .address import SERVER_NAME
-from .commands import OPEN_LINK, TOOL_PREFIX, call_cardlake, handle, send_with_buttons, today_reply
+from .address import open_link
+from .commands import TOOL_PREFIX, call_cardlake, handle, send_with_buttons, today_reply
 from .feed_view import with_open_link
 
 logger = logging.getLogger(__name__)
@@ -30,13 +31,15 @@ MORNING_PROMPT = (
     "change any Cardlake card."
 )
 
-# Frozen into each new session's instructions. It only shapes how cards look and what short
-# replies mean; it never asks Hermes to read past chats or act without the user.
-CHAT_GUIDE = f"""When you show Cardlake cards in a reply, lay each one out as a quote block, which Telegram shows as a card:
+# Built into each new session's instructions, so its link follows the current Cardlake. It only
+# shapes how cards look and what short replies mean; it never asks Hermes to read past chats or
+# act without the user.
+def chat_guide(_session=None) -> str:
+    return f"""When you show Cardlake cards in a reply, lay each one out as a quote block, which Telegram shows as a card:
 > 🔔 **Reminder** · ⚠️ overdue 3 days
 > **The card's title**
 > [example.com](the card's url, if it has one)
-Use 🔔 Reminder, 📚 Learning, 💼 Work item, 👪 Family, 🔖 Bookmark, 💬 Misc, 🗂 GitHub issue, 📎 File. Put a blank line between cards. Show at most 3 cards this way and list any others one per line. Never draw boxes or ASCII art. End the reply with: Open Cardlake: {OPEN_LINK}
+Use 🔔 Reminder, 📚 Learning, 💼 Work item, 👪 Family, 🔖 Bookmark, 💬 Misc, 🗂 GitHub issue, 📎 File. Put a blank line between cards. Show at most 3 cards this way and list any others one per line. Never draw boxes or ASCII art. End the reply with: Open Cardlake: {open_link()}
 
 Cardlake's own tools are named {TOOL_PREFIX}… (list_feed, search_cards, create_learning, create_bookmark, create_reminder, create_talking_point, update_reminder, update_learning, snooze_card). If they aren't in your tool list, find them with tool_search "cardlake"; never look for them in files or the terminal.
 
@@ -112,7 +115,7 @@ def add_open_link(response_text: str = "", **kwargs):
     Append-only, so a streamed reply just gains a last line."""
     if _TURNS_USING_CARDLAKE.pop(_turn_key(**kwargs), "missing") == "missing":
         return None
-    if OPEN_LINK in response_text or response_text.strip() == "[SILENT]":
+    if open_link() in response_text or response_text.strip() == "[SILENT]":
         return None
     return with_open_link(response_text)
 
@@ -151,7 +154,7 @@ def register(ctx) -> None:
         handler=lambda args, **kwargs: show.show_tool(buttons, args),
         description=show.SHOW_SCHEMA["description"], emoji="🃏",
     ))
-    _optional("the chat guide", lambda: ctx.register_system_prompt_section("cardlake", CHAT_GUIDE))
+    _optional("the chat guide", lambda: ctx.register_system_prompt_section("cardlake", chat_guide))
     if guarded:
         _optional("the morning message", lambda: _register_morning(ctx, buttons))
 
