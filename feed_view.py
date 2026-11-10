@@ -37,8 +37,8 @@ def local_now() -> datetime:
     name = os.environ.get("HERMES_TIMEZONE", "").strip()
     if not name:
         try:
-            from hermes_cli.config import load_config
-            name = str(load_config().get("timezone") or "").strip()
+            from .address import _hermes_config
+            name = str(_hermes_config().get("timezone") or "").strip()
         except Exception:
             name = ""
     try:

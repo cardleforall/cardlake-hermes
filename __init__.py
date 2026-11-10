@@ -9,6 +9,7 @@ from collections import OrderedDict
 from . import show
 from .buttons import TelegramCards
 from .address import SERVER_NAME
+from . import address
 from .address import open_link
 from .commands import TOOL_PREFIX, call_cardlake, handle, send_with_buttons, today_reply
 from .feed_view import with_open_link
@@ -130,6 +131,7 @@ def _optional(what: str, register_fn) -> None:
 
 
 def register(ctx) -> None:
+    address.remember_home()
     buttons = TelegramCards(ctx, lambda tool, args: call_cardlake(ctx, tool, args))
     ctx.register_command(
         "cardlake", lambda raw_args: handle(ctx, raw_args, buttons),

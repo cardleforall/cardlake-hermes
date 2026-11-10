@@ -40,9 +40,34 @@ def _from_connection(load_config: Callable[[], Mapping]) -> Optional[str]:
     return url or None
 
 
+# The Hermes home (profile folder) this plugin was loaded for. Hermes points its config reader
+# at that home while it loads plugins, but commands, buttons and hooks run later, outside that,
+# where the reader would fall back to the default home: a gateway serving another profile would
+# then see a different config, without this profile's Cardlake connection or time zone.
+_home: Optional[object] = None
+
+
+def remember_home() -> None:
+    """Called from register(), while Hermes has the plugin's own home in place."""
+    global _home
+    try:
+        from hermes_constants import get_hermes_home
+        _home = get_hermes_home()
+    except Exception:  # an older Hermes, or none (tests): read the default home
+        _home = None
+
+
 def _hermes_config() -> Mapping:
+    """Hermes' config for the home this plugin was loaded for."""
     from hermes_cli.config import load_config
-    return load_config()
+    if _home is None:
+        return load_config()
+    from hermes_constants import reset_hermes_home_override, set_hermes_home_override
+    token = set_hermes_home_override(_home)
+    try:
+        return load_config()
+    finally:
+        reset_hermes_home_override(token)
 
 
 def cardlake_address(env: Mapping[str, str] = os.environ,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.7 (10 Nov 2026)
+
+- Reads the Hermes profile it was loaded for. Commands, buttons and hooks run after Hermes has finished loading plugins, where Hermes' config reader can fall back to the default home; with Hermes running another profile, the plugin could miss that profile's Cardlake address and time zone.
+
 ## 0.7.6 (10 Nov 2026)
 
 - Links and buttons follow a changed Cardlake connection without a restart. Hermes reconnects to a changed `cardlake` connection by itself, but the plugin read the address only when Hermes started, so after switching to a self-hosted copy the cards came from the new copy while Open Cardlake still went to the old one. The address is now read when a link is made (at most every 30 seconds).

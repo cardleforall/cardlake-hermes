@@ -83,5 +83,47 @@ class FollowsAChangedConnectionTest(unittest.TestCase):
         self.assertIn("--url https://cards.example.com/api/mcp", commands.not_connected())
 
 
+class ReadsItsOwnProfileTest(unittest.TestCase):
+    """Commands run outside Hermes' plugin-loading scope; the config must still be the profile's."""
+
+    def setUp(self):
+        import sys, types
+        self.sys = sys
+        self.saved = {k: sys.modules.get(k) for k in ("hermes_constants", "hermes_cli", "hermes_cli.config")}
+        self.override = None
+        constants = types.ModuleType("hermes_constants")
+        constants.get_hermes_home = lambda: "/home/robin/.hermes/profiles/work"
+
+        def set_override(path):
+            previous, self.override = self.override, path
+            return previous
+        constants.set_hermes_home_override = set_override
+        constants.reset_hermes_home_override = lambda token: setattr(self, "override", token)
+        config = types.ModuleType("hermes_cli.config")
+        homes = {"/home/robin/.hermes/profiles/work": "https://cards.example.com/api/mcp",
+                 None: "https://cardlake.app/api/mcp"}
+        config.load_config = lambda: {"mcp_servers": {"cardlake": {"url": homes[self.override]}}}
+        sys.modules.update({"hermes_constants": constants, "hermes_cli": types.ModuleType("hermes_cli"),
+                            "hermes_cli.config": config})
+        self.home = address._home
+
+    def tearDown(self):
+        address._home = self.home
+        for key, module in self.saved.items():
+            if module is None:
+                self.sys.modules.pop(key, None)
+            else:
+                self.sys.modules[key] = module
+
+    def test_reads_the_home_it_was_loaded_for(self):
+        address.remember_home()
+        self.assertEqual(address.cardlake_address({}), "https://cards.example.com")
+        self.assertIsNone(self.override)  # put back afterwards
+
+    def test_without_a_remembered_home_reads_the_default(self):
+        address._home = None
+        self.assertEqual(address.cardlake_address({}), "https://cardlake.app")
+
+
 if __name__ == "__main__":
     unittest.main()
